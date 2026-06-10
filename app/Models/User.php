@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Scopes\ChurchScope;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -13,42 +11,104 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    protected static function booted()
-    {
-        static::addGlobalScope(new ChurchScope);
-    }
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $guarded = [];
 
-
-
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'last_login_at'     => 'datetime',
+            'password'          => 'hashed',
+            'is_super_admin'    => 'boolean',
         ];
     }
 
+    // ─── Relationships ─────────────────────────────────────────────────────
 
+    public function church()
+    {
+        return $this->belongsTo(Church::class);
+    }
+
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    // ─── Permission Helpers ────────────────────────────────────────────────
+
+    /**
+     * Check if user can perform an action on a module.
+     * Super admins bypass all checks.
+     *
+     * Usage: $user->can('finance', 'reconcile')
+     */
+    public function hasPermission(string $module, string $action): bool
+    {
+        if ($this->is_super_admin) {
+            return true;
+        }
+
+        if (! $this->role) {
+            return false;
+        }
+
+        return $this->role->can($module, $action);
+    }
+
+    /**
+     * Check if user has ANY permission on a module (for sidebar visibility).
+     */
+    public function canAccessModule(string $module): bool
+    {
+        if ($this->is_super_admin) {
+            return true;
+        }
+
+        if (! $this->role) {
+            return false;
+        }
+
+        $permissions = $this->role->permissions ?? [];
+        return ! empty($permissions[$module] ?? []);
+    }
+
+    /**
+     * Flat permissions array for the frontend.
+     * e.g. ["finance.view", "finance.reconcile", "members.view"]
+     */
+    public function flatPermissions(): array
+    {
+        if ($this->is_super_admin) {
+            return ['*'];
+        }
+
+        if (! $this->role) {
+            return [];
+        }
+
+        $flat = [];
+        foreach ($this->role->permissions ?? [] as $module => $actions) {
+            foreach ($actions as $action) {
+                $flat[] = "{$module}.{$action}";
+            }
+        }
+
+        return $flat;
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return (bool) $this->is_super_admin;
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
+    }
 }
