@@ -66,7 +66,7 @@ const features = [
     {
         icon: TrendingUp,
         title: 'Evangelism Funnel',
-        desc: 'Visual funnel tracking every soul won through to full establishment.',
+        desc: 'Visual funnel tracking every Members Reached through to full establishment.',
         color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30',
     },
     {
@@ -277,7 +277,7 @@ export default function Welcome() {
                         {/* Dashboard preview content */}
                         <div className="p-5 grid grid-cols-3 sm:grid-cols-6 gap-3">
                             {[
-                                { label: 'Souls Won', val: '47', color: 'text-emerald-600', trend: '↑12.5%' },
+                                { label: 'Members Reached', val: '47', color: 'text-emerald-600', trend: '↑12.5%' },
                                 { label: 'Active Members', val: '842', color: 'text-primary', trend: '↑4.2%' },
                                 { label: 'Follow-Ups', val: '38', color: 'text-amber-600', trend: '↓8.3%' },
                                 { label: 'Monthly Income', val: '₦4.2M', color: 'text-amber-600', trend: '↑18.7%' },
@@ -312,7 +312,7 @@ export default function Welcome() {
                             <div className="rounded-xl border border-border bg-card p-4">
                                 <p className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Evangelism Funnel</p>
                                 {[
-                                    { stage: 'Soul Won', count: 47, pct: 100, color: 'bg-primary' },
+                                    { stage: 'Members Reached', count: 47, pct: 100, color: 'bg-primary' },
                                     { stage: 'Visited', count: 38, pct: 81, color: 'bg-blue-500' },
                                     { stage: 'Member Class', count: 29, pct: 62, color: 'bg-emerald-500' },
                                     { stage: 'Worker', count: 22, pct: 47, color: 'bg-amber-500' },
@@ -366,7 +366,7 @@ export default function Welcome() {
                     <div className="mx-auto max-w-5xl px-6">
                         <div className="text-center mb-14">
                             <Badge className="mb-4 border-border bg-background text-muted-foreground">Workflow</Badge>
-                            <h2 className="text-3xl font-bold tracking-tight mb-3">From soul won to established member</h2>
+                            <h2 className="text-3xl font-bold tracking-tight mb-3">From Members Reached to established member</h2>
                             <p className="text-muted-foreground">The complete lifecycle, tracked automatically.</p>
                         </div>
                         <div className="relative">
@@ -374,7 +374,7 @@ export default function Welcome() {
                             <div className="absolute top-6 left-0 right-0 h-px bg-border hidden sm:block mx-10" />
                             <div className="grid grid-cols-1 sm:grid-cols-5 gap-6 relative">
                                 {[
-                                    { step: '01', icon: Star, label: 'Soul Won', desc: 'Logged by evangelist', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+                                    { step: '01', icon: Star, label: 'Members Reached', desc: 'Logged by evangelist', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
                                     { step: '02', icon: UserSearch, label: 'First Visit', desc: 'Auto follow-up created', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
                                     { step: '03', icon: MessageSquare, label: 'Follow-Up', desc: 'CRM tracks contacts', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
                                     { step: '04', icon: Users, label: 'Membership Class', desc: 'Progress tracked live', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },

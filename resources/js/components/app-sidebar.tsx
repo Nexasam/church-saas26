@@ -1,9 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     Building2,
+    CalendarDays,
     ChevronDown,
     CreditCard,
-    HeartHandshake,
+    Heart,
     LayoutDashboard,
     LayoutGrid,
     MessageSquare,
@@ -70,9 +71,14 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'Care Cases',
-        href: '/care',
-        icon: HeartHandshake,
+        title: 'Attendance',
+        href: '/attendance',
+        icon: CalendarDays,
+    },
+    {
+        title: 'Love System',
+        href: '/love',
+        icon: Heart,
     },
     {
         title: 'SMS',

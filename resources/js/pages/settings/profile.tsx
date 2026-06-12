@@ -24,6 +24,7 @@ export default function Profile(
     },
 ) {
     const { auth } = usePage<PageProps>().props;
+    const canEditEmail = auth.user.is_platform_admin === true;
 
     return (
         <>
@@ -69,21 +70,36 @@ export default function Profile(
                             <div className="grid gap-2">
                                 <Label htmlFor="email">Email address</Label>
 
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.email}
-                                    name="email"
-                                    required
-                                    autoComplete="username"
-                                    placeholder="Email address"
-                                />
-
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.email}
-                                />
+                                {canEditEmail ? (
+                                    <>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            className="mt-1 block w-full"
+                                            defaultValue={auth.user.email}
+                                            name="email"
+                                            required
+                                            autoComplete="username"
+                                            placeholder="Email address"
+                                        />
+                                        <InputError className="mt-2" message={errors.email} />
+                                    </>
+                                ) : (
+                                    <>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            className="mt-1 block w-full bg-muted/50 text-muted-foreground cursor-not-allowed"
+                                            value={auth.user.email}
+                                            disabled
+                                            readOnly
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                                            <span className="inline-block size-3 rounded-full bg-amber-400" />
+                                            Only the church super admin can change their email address.
+                                        </p>
+                                    </>
+                                )}
                             </div>
 
                             {mustVerifyEmail &&

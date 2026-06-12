@@ -55,13 +55,27 @@ export default function Register({ passwordRules }: Props) {
                     <>
                         <div className="flex flex-col gap-4">
                             <div className="flex flex-col gap-1.5">
-                                <Label htmlFor="name" className="text-sm font-medium">Full name</Label>
+                                <Label htmlFor="church_name" className="text-sm font-medium">Church name</Label>
                                 <Input
-                                    id="name"
+                                    id="church_name"
                                     type="text"
                                     required
                                     autoFocus
                                     tabIndex={1}
+                                    name="church_name"
+                                    placeholder="Grace Assembly"
+                                    className="h-10"
+                                />
+                                <InputError message={errors.church_name} />
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="name" className="text-sm font-medium">Your full name</Label>
+                                <Input
+                                    id="name"
+                                    type="text"
+                                    required
+                                    tabIndex={2}
                                     autoComplete="name"
                                     name="name"
                                     placeholder="Pastor John Adeyemi"
@@ -76,10 +90,10 @@ export default function Register({ passwordRules }: Props) {
                                     id="email"
                                     type="email"
                                     required
-                                    tabIndex={2}
+                                    tabIndex={3}
                                     autoComplete="email"
                                     name="email"
-                                    placeholder="admin@church.org"
+                                    placeholder="pastor@church.org"
                                     className="h-10"
                                 />
                                 <InputError message={errors.email} />
@@ -90,7 +104,7 @@ export default function Register({ passwordRules }: Props) {
                                 <PasswordInput
                                     id="password"
                                     required
-                                    tabIndex={3}
+                                    tabIndex={4}
                                     autoComplete="new-password"
                                     name="password"
                                     placeholder="••••••••"
@@ -105,7 +119,7 @@ export default function Register({ passwordRules }: Props) {
                                 <PasswordInput
                                     id="password_confirmation"
                                     required
-                                    tabIndex={4}
+                                    tabIndex={5}
                                     autoComplete="new-password"
                                     name="password_confirmation"
                                     placeholder="••••••••"
@@ -119,7 +133,7 @@ export default function Register({ passwordRules }: Props) {
                         <Button
                             type="submit"
                             className="w-full h-10 font-medium"
-                            tabIndex={5}
+                            tabIndex={6}
                             data-test="register-user-button"
                         >
                             {processing && <Spinner className="mr-2" />}
@@ -130,7 +144,7 @@ export default function Register({ passwordRules }: Props) {
 
                         <p className="text-center text-sm text-muted-foreground">
                             Already have an account?{' '}
-                            <TextLink href={login()} tabIndex={6} className="font-medium text-foreground hover:underline">
+                            <TextLink href={login()} tabIndex={7} className="font-medium text-foreground hover:underline">
                                 Sign in
                             </TextLink>
                         </p>
@@ -143,5 +157,5 @@ export default function Register({ passwordRules }: Props) {
 
 Register.layout = {
     title: 'Create your account',
-    description: 'Get your church on Church OS in minutes',
+    description: 'Set up Church OS for your church in minutes',
 };

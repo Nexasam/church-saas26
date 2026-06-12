@@ -42,12 +42,13 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $user ? [
-                    'id'             => $user->id,
-                    'name'           => $user->name,
-                    'email'          => $user->email,
-                    'church_id'      => $user->church_id,
-                    'is_super_admin' => $user->is_super_admin,
-                    'status'         => $user->status,
+                    'id'               => $user->id,
+                    'name'             => $user->name,
+                    'email'            => $user->email,
+                    'church_id'        => $user->church_id,
+                    'is_super_admin'   => $user->is_super_admin,
+                    'is_platform_admin'=> $user->is_platform_admin,
+                    'status'           => $user->status,
                     'role'           => $user->role ? [
                         'id'   => $user->role->id,
                         'name' => $user->role->name,
@@ -58,12 +59,15 @@ class HandleInertiaRequests extends Middleware
             ],
             'church' => $user
                 ? [
-                    'id'   => $user->church_id,
-                    'name' => $user->church?->name ?? 'My Church',
-                    'plan' => 'growth',
+                    'id'                  => $user->church_id,
+                    'name'                => $user->church?->name ?? 'My Church',
+                    'theme_color'         => $user->church?->theme_color ?? 'blue',
+                    'plan'                => $user->church?->payment_category ?? 'free',
+                    'onboarding_complete' => (bool) $user->church?->onboarding_complete,
                 ]
                 : null,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'impersonating' => $request->session()->has('impersonating_as'),
         ];
     }
 }

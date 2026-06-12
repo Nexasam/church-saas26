@@ -47,7 +47,7 @@ const quickActions = [
     { label: 'Add Member', href: '/members/create', icon: Users },
     { label: 'Record Follow-Up', href: '/followups/create', icon: UserSearch },
     { label: 'Log Finance Entry', href: '/finance/create', icon: CreditCard },
-    { label: 'Log Soul Won', href: '/evangelism/create', icon: TrendingUp },
+    { label: 'Log Members Reached', href: '/evangelism/create', icon: TrendingUp },
     { label: 'Open Care Case', href: '/care/create', icon: HeartHandshake },
 ];
 
@@ -181,9 +181,9 @@ export function AppTopBar() {
 
                 {/* Notifications */}
                 <Sheet open={notifOpen} onOpenChange={setNotifOpen}>
-                    <SheetTrigger asChild>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <SheetTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 relative">
                                     <Bell className="size-4" />
                                     {unreadCount > 0 && (
@@ -192,10 +192,10 @@ export function AppTopBar() {
                                         </span>
                                     )}
                                 </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Notifications</TooltipContent>
-                        </Tooltip>
-                    </SheetTrigger>
+                            </SheetTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>Notifications</TooltipContent>
+                    </Tooltip>
                     <SheetContent side="right" className="w-96 p-0 flex flex-col">
                         <SheetHeader className="px-4 py-3.5 border-b border-border">
                             <div className="flex items-center justify-between">

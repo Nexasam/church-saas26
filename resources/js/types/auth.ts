@@ -12,6 +12,7 @@ export type User = {
     email_verified_at: string | null;
     church_id: number;
     is_super_admin: boolean;
+    is_platform_admin: boolean;
     status: 'active' | 'suspended' | 'pending';
     role: UserRole | null;
     /** Flat permission strings e.g. ["finance.view", "members.create"] or ["*"] for super admin */

@@ -111,7 +111,7 @@ export default function Dashboard() {
                         <Button size="sm" variant="secondary" className="h-8 gap-1.5 bg-white/15 text-white border-white/20 hover:bg-white/25" asChild>
                             <Link href="/evangelism">
                                 <HandHeart className="size-3.5" />
-                                Log Soul Won
+                                Log Members Reached
                             </Link>
                         </Button>
                         <Button size="sm" variant="secondary" className="h-8 gap-1.5 bg-white/15 text-white border-white/20 hover:bg-white/25" asChild>
@@ -126,7 +126,7 @@ export default function Dashboard() {
                 {/* ── KPI Grid ───────────────────────────────────────────── */}
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6 stagger-children">
                     <KpiCard
-                        title="Souls Won"
+                        title="Members Reached"
                         value={formatNumber(m.soulsWon.value)}
                         trend={m.soulsWon.trend}
                         trendLabel="vs last month"
@@ -179,7 +179,7 @@ export default function Dashboard() {
                         trendLabel="vs last month"
                         icon={TrendingUp}
                         iconColor="text-purple-600"
-                        subtitle="Soul won → Established"
+                        subtitle="Members Reached → Established"
                         className="xl:col-span-1"
                     />
                     <KpiCard

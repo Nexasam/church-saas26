@@ -10,6 +10,12 @@ class Church extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'has_branches'        => 'boolean',
+        'onboarding_complete' => 'boolean',
+        'subscription_expiry' => 'date',
+    ];
+
     public function supports()
     {
         return $this->hasMany(Support::class);
@@ -43,6 +49,11 @@ class Church extends Model
     public function homeChurches()
     {
         return $this->hasMany(HomeChurch::class);
+    }
+
+    public function users()
+    {
+        return $this->hasMany(User::class);
     }
 
     public function supporters()

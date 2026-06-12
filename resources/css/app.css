@@ -9,7 +9,7 @@
 
 @theme {
     --font-sans:
-        'Inter', ui-sans-serif, system-ui, sans-serif,
+        'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 
@@ -140,6 +140,82 @@
     --info-foreground: oklch(0.98 0 0);
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   THEME: BLUE (Royal Blue) — default
+   ═══════════════════════════════════════════════════════════════════ */
+:root,
+[data-theme="blue"] {
+    --primary: oklch(0.45 0.20 265);
+    --primary-foreground: oklch(0.98 0.005 265);
+    --ring: oklch(0.45 0.20 265);
+    --sidebar-primary: oklch(0.45 0.20 265);
+    --sidebar-primary-foreground: oklch(0.98 0.005 265);
+    --sidebar-ring: oklch(0.45 0.20 265);
+    --secondary-foreground: oklch(0.45 0.20 265);
+    --chart-1: oklch(0.55 0.22 265);
+}
+
+[data-theme="blue"].dark,
+.dark [data-theme="blue"] {
+    --primary: oklch(0.68 0.18 265);
+    --primary-foreground: oklch(0.14 0.04 265);
+    --ring: oklch(0.68 0.18 265);
+    --sidebar-primary: oklch(0.68 0.18 265);
+    --sidebar-primary-foreground: oklch(0.14 0.04 265);
+    --sidebar-ring: oklch(0.68 0.18 265);
+    --chart-1: oklch(0.72 0.18 265);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THEME: PURPLE (Royal Purple)
+   ═══════════════════════════════════════════════════════════════════ */
+[data-theme="purple"] {
+    --primary: oklch(0.47 0.22 295);
+    --primary-foreground: oklch(0.98 0.005 295);
+    --ring: oklch(0.47 0.22 295);
+    --sidebar-primary: oklch(0.47 0.22 295);
+    --sidebar-primary-foreground: oklch(0.98 0.005 295);
+    --sidebar-ring: oklch(0.47 0.22 295);
+    --secondary-foreground: oklch(0.47 0.22 295);
+    --chart-1: oklch(0.57 0.22 295);
+}
+
+[data-theme="purple"].dark,
+.dark [data-theme="purple"] {
+    --primary: oklch(0.70 0.20 295);
+    --primary-foreground: oklch(0.14 0.04 295);
+    --ring: oklch(0.70 0.20 295);
+    --sidebar-primary: oklch(0.70 0.20 295);
+    --sidebar-primary-foreground: oklch(0.14 0.04 295);
+    --sidebar-ring: oklch(0.70 0.20 295);
+    --chart-1: oklch(0.73 0.20 295);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THEME: EMERALD (Kingdom Green)
+   ═══════════════════════════════════════════════════════════════════ */
+[data-theme="emerald"] {
+    --primary: oklch(0.48 0.18 160);
+    --primary-foreground: oklch(0.98 0.005 160);
+    --ring: oklch(0.48 0.18 160);
+    --sidebar-primary: oklch(0.48 0.18 160);
+    --sidebar-primary-foreground: oklch(0.98 0.005 160);
+    --sidebar-ring: oklch(0.48 0.18 160);
+    --secondary-foreground: oklch(0.48 0.18 160);
+    --chart-1: oklch(0.58 0.20 160);
+}
+
+[data-theme="emerald"].dark,
+.dark [data-theme="emerald"] {
+    --primary: oklch(0.68 0.18 160);
+    --primary-foreground: oklch(0.10 0.04 160);
+    --ring: oklch(0.68 0.18 160);
+    --sidebar-primary: oklch(0.68 0.18 160);
+    --sidebar-primary-foreground: oklch(0.10 0.04 160);
+    --sidebar-ring: oklch(0.68 0.18 160);
+    --chart-1: oklch(0.70 0.18 160);
+}
+
 .dark {
     /* ── Dark mode: warm espresso/cocoa — not cold, not harsh ── */
     --background: oklch(0.16 0.018 35);
@@ -215,6 +291,15 @@
 }
 
 @layer utilities {
+    /* Form label utility */
+    .field-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--muted-foreground);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
     /* Micro-interaction transitions */
     .transition-base {
         transition-property: all;

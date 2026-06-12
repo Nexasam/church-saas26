@@ -94,7 +94,7 @@ export type EvangelismRecord = {
     stage: 'soul_won' | 'visited' | 'membership_class' | 'worker' | 'established';
     wonBy: string;
     wonDate: string;
-    source: 'invited' | 'outreach' | 'social_media' | 'service' | 'evangelism';
+    source: 'invited' | 'outreach' | 'social_media' | 'service' | 'evangelism' | 'member' | 'self';
     location?: string;
     followUps: number;
     lastFollowUp?: string;
@@ -535,7 +535,7 @@ export const mockMembers: Member[] = [
     },
 ];
 
-// ─── Evangelism Records ───────────────────────────────────────────────────────
+// ─── Potential members ───────────────────────────────────────────────────────
 
 export const mockEvangelismRecords: EvangelismRecord[] = [
     {
@@ -618,7 +618,7 @@ export const mockEvangelismRecords: EvangelismRecord[] = [
 ];
 
 export const mockEvangelismFunnelData = [
-    { stage: 'Soul Won', count: 47, color: 'oklch(0.55 0.18 265)', pct: 100 },
+    { stage: 'Members Reached', count: 47, color: 'oklch(0.55 0.18 265)', pct: 100 },
     { stage: 'Visited', count: 38, color: 'oklch(0.52 0.17 230)', pct: 81 },
     { stage: 'Membership Class', count: 29, color: 'oklch(0.52 0.15 162)', pct: 62 },
     { stage: 'Worker', count: 22, color: 'oklch(0.65 0.16 84)', pct: 47 },
@@ -699,14 +699,14 @@ export const mockNotifications: Notification[] = [
     { id: 'n-001', type: 'escalation', title: 'Follow-up Escalated', message: 'Babatunde Fashola has not been contacted in 6 days. Requires urgent attention.', read: false, createdAt: '2026-06-08T14:30:00', link: '/followups', actor: 'System' },
     { id: 'n-002', type: 'finance', title: 'Reconciliation Variance', message: 'June 1 service offering has a ₦15,000 variance. Please investigate.', read: false, createdAt: '2026-06-08T11:00:00', link: '/finance/reconciliation', actor: 'System' },
     { id: 'n-003', type: 'care', title: 'New Care Case', message: 'Sis. Ada Nwosu reported a job loss. Care team should follow up.', read: false, createdAt: '2026-06-08T10:45:00', link: '/care', actor: 'Bro. James' },
-    { id: 'n-004', type: 'follow_up', title: 'Souls Won Today', message: 'Bro. Samuel reported 2 new souls won at outreach. Auto-follow-ups created.', read: true, createdAt: '2026-06-08T09:15:00', link: '/evangelism', actor: 'Bro. Samuel' },
+    { id: 'n-004', type: 'follow_up', title: 'Members Reached Today', message: 'Bro. Samuel reported 2 new Members Reached at outreach. Auto-follow-ups created.', read: true, createdAt: '2026-06-08T09:15:00', link: '/evangelism', actor: 'Bro. Samuel' },
     { id: 'n-005', type: 'system', title: 'Monthly Report Ready', message: 'May 2026 church operations report is ready for download.', read: true, createdAt: '2026-06-07T08:00:00', actor: 'System' },
 ];
 
 // ─── Activity Feed ────────────────────────────────────────────────────────────
 
 export const mockActivityFeed: ActivityFeedItem[] = [
-    { id: 'af-001', type: 'soul_won', title: 'New Soul Won', description: 'Bro. Samuel won Emeka Dike at the Friday outreach', actor: 'Bro. Samuel', timestamp: '2026-06-08T16:30:00', meta: { count: 1 } },
+    { id: 'af-001', type: 'soul_won', title: 'New Members Reached', description: 'Bro. Samuel won Emeka Dike at the Friday outreach', actor: 'Bro. Samuel', timestamp: '2026-06-08T16:30:00', meta: { count: 1 } },
     { id: 'af-002', type: 'finance', title: 'Service Offering Recorded', description: 'Sunday offering of ₦1,160,000 recorded and banked', actor: 'Bro. Finance', timestamp: '2026-06-08T14:00:00', meta: { amount: 1160000 } },
     { id: 'af-003', type: 'attendance', title: 'Service Attendance Updated', description: '634 members attended Sunday service', actor: 'System', timestamp: '2026-06-08T13:00:00', meta: { count: 634 } },
     { id: 'af-004', type: 'care', title: 'Care Case Opened', description: 'New care case for Bro. Eze Uchenna — hospitalization', actor: 'Sis. Care', timestamp: '2026-06-07T18:00:00' },

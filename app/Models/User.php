@@ -5,11 +5,13 @@ namespace App\Models;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Passkeys\PasskeyAuthenticatable;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable, PasskeyAuthenticatable;
 
     protected $guarded = [];
 
@@ -21,10 +23,11 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'last_login_at'     => 'datetime',
-            'password'          => 'hashed',
-            'is_super_admin'    => 'boolean',
+            'email_verified_at'  => 'datetime',
+            'last_login_at'      => 'datetime',
+            'password'           => 'hashed',
+            'is_super_admin'     => 'boolean',
+            'is_platform_admin'  => 'boolean',
         ];
     }
 

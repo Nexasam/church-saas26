@@ -254,70 +254,274 @@ function TransactionsTab() {
     );
 }
 
-function ServiceEntryTab() {
-    const [cash, setCash] = useState('');
-    const [transfer, setTransfer] = useState('');
-    const [pos, setPos] = useState('');
+// ─── Offering Templates ───────────────────────────────────────────────────────
 
-    const total = (parseFloat(cash || '0') + parseFloat(transfer || '0') + parseFloat(pos || '0'));
+type OfferingSection = {
+    id: string;
+    label: string;
+    enabled: boolean;
+    isSystem: boolean;
+};
+
+type OfferingTemplate = {
+    id: string;
+    name: string;
+    sections: OfferingSection[];
+};
+
+const DEFAULT_TEMPLATES: OfferingTemplate[] = [
+    {
+        id: 'standard',
+        name: 'Standard Sunday',
+        sections: [
+            { id: 'tithe',    label: 'Tithes',          enabled: true,  isSystem: true },
+            { id: 'offering', label: 'Offering',         enabled: true,  isSystem: true },
+            { id: 'special',  label: 'Special Offering', enabled: false, isSystem: false },
+            { id: 'building', label: 'Building Project', enabled: false, isSystem: false },
+        ],
+    },
+    {
+        id: 'full',
+        name: 'Full Service',
+        sections: [
+            { id: 'tithe',        label: 'Tithes',            enabled: true,  isSystem: true },
+            { id: 'offering',     label: 'Offering',           enabled: true,  isSystem: true },
+            { id: 'special',      label: 'Special Offering',   enabled: true,  isSystem: false },
+            { id: 'building',     label: 'Building Project',   enabled: true,  isSystem: false },
+            { id: 'thanksgiving', label: 'Thanksgiving',       enabled: true,  isSystem: false },
+            { id: 'welfare',      label: 'Welfare',            enabled: false, isSystem: false },
+        ],
+    },
+    {
+        id: 'midweek',
+        name: 'Midweek Service',
+        sections: [
+            { id: 'offering', label: 'Offering', enabled: true,  isSystem: true },
+            { id: 'welfare',  label: 'Welfare',  enabled: false, isSystem: false },
+        ],
+    },
+];
+
+const PAYMENT_METHODS = ['Cash', 'Transfer', 'POS', 'Cheque'];
+
+type SectionEntry = { cash: string; transfer: string; pos: string; cheque: string };
+
+function ServiceEntryTab() {
+    const [templates, setTemplates]         = useState<OfferingTemplate[]>(DEFAULT_TEMPLATES);
+    const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_TEMPLATES[0].id);
+    const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+    const [serviceName, setServiceName]     = useState('Sunday Service');
+    const [serviceDate, setServiceDate]     = useState(new Date().toISOString().split('T')[0]);
+    const [attendance, setAttendance]       = useState('');
+    const [entries, setEntries]             = useState<Record<string, SectionEntry>>({});
+    const [newSectionName, setNewSectionName] = useState('');
+
+    const template   = templates.find(t => t.id === selectedTemplate) ?? templates[0];
+    const activeSections = template.sections.filter(s => s.enabled);
+
+    function getEntry(sectionId: string): SectionEntry {
+        return entries[sectionId] ?? { cash: '', transfer: '', pos: '', cheque: '' };
+    }
+
+    function setEntry(sectionId: string, method: string, value: string) {
+        setEntries(prev => ({
+            ...prev,
+            [sectionId]: { ...getEntry(sectionId), [method.toLowerCase()]: value },
+        }));
+    }
+
+    function sectionTotal(sectionId: string): number {
+        const e = getEntry(sectionId);
+        return ['cash', 'transfer', 'pos', 'cheque'].reduce((s, m) => s + parseFloat((e as any)[m] || '0'), 0);
+    }
+
+    const grandTotal = activeSections.reduce((s, sec) => s + sectionTotal(sec.id), 0);
+
+    function toggleSection(templateId: string, sectionId: string) {
+        setTemplates(prev => prev.map(t =>
+            t.id !== templateId ? t : {
+                ...t,
+                sections: t.sections.map(s =>
+                    s.id === sectionId ? { ...s, enabled: !s.enabled } : s
+                ),
+            }
+        ));
+    }
+
+    function addSection(templateId: string) {
+        if (!newSectionName.trim()) return;
+        setTemplates(prev => prev.map(t =>
+            t.id !== templateId ? t : {
+                ...t,
+                sections: [...t.sections, { id: `custom-${Date.now()}`, label: newSectionName.trim(), enabled: true, isSystem: false }],
+            }
+        ));
+        setNewSectionName('');
+    }
+
+    function removeSection(templateId: string, sectionId: string) {
+        setTemplates(prev => prev.map(t =>
+            t.id !== templateId ? t : {
+                ...t,
+                sections: t.sections.filter(s => s.id !== sectionId || s.isSystem),
+            }
+        ));
+    }
 
     return (
-        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* POS-style entry */}
-            <div className="card-base p-6">
-                <h3 className="text-sm font-semibold mb-4">Record Service Offering</h3>
-                <div className="flex flex-col gap-4">
-                    <div>
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Service Name</label>
-                        <Input placeholder="e.g. Sunday Service" className="h-9" defaultValue="Sunday Service" />
-                    </div>
-                    <div>
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Service Date</label>
-                        <Input type="date" className="h-9" defaultValue="2026-06-09" />
-                    </div>
-                    <Separator />
-                    <div>
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Cash Amount (₦)</label>
-                        <Input
-                            type="number"
-                            placeholder="0.00"
-                            className="h-9 text-lg font-semibold"
-                            value={cash}
-                            onChange={(e) => setCash(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Transfer Amount (₦)</label>
-                        <Input
-                            type="number"
-                            placeholder="0.00"
-                            className="h-9 text-lg font-semibold"
-                            value={transfer}
-                            onChange={(e) => setTransfer(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">POS Amount (₦)</label>
-                        <Input
-                            type="number"
-                            placeholder="0.00"
-                            className="h-9 text-lg font-semibold"
-                            value={pos}
-                            onChange={(e) => setPos(e.target.value)}
-                        />
-                    </div>
-                    <Separator />
-                    {/* Live total */}
-                    <div className="flex items-center justify-between rounded-xl bg-primary/5 border border-primary/20 p-4">
-                        <span className="text-sm font-medium text-muted-foreground">Total Collected</span>
-                        <span className="text-2xl font-bold text-primary tabular-nums">
-                            {formatCurrency(total)}
-                        </span>
-                    </div>
-                    <Button className="w-full h-10 font-semibold" disabled={total === 0}>
-                        Record Offering
-                    </Button>
+        <div className="p-6 flex flex-col gap-6">
+            {/* Template + Service info bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Service Name</label>
+                    <Input value={serviceName} onChange={e => setServiceName(e.target.value)} className="h-9" placeholder="e.g. Sunday Service" />
                 </div>
+                <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Date</label>
+                    <Input type="date" value={serviceDate} onChange={e => setServiceDate(e.target.value)} className="h-9" />
+                </div>
+                <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Attendance</label>
+                    <Input type="number" placeholder="e.g. 450" value={attendance} onChange={e => setAttendance(e.target.value)} className="h-9" />
+                </div>
+            </div>
+
+            {/* Template picker */}
+            <div>
+                <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Offering Template</label>
+                    <button
+                        onClick={() => setShowTemplateEditor(v => !v)}
+                        className="text-xs text-primary hover:underline"
+                    >
+                        {showTemplateEditor ? 'Hide editor' : 'Customize templates'}
+                    </button>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                    {templates.map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => setSelectedTemplate(t.id)}
+                            className={cn(
+                                'px-3 py-1.5 rounded-lg border text-xs font-medium transition-all',
+                                selectedTemplate === t.id
+                                    ? 'border-primary bg-primary/5 text-primary'
+                                    : 'border-border text-muted-foreground hover:border-primary/40',
+                            )}
+                        >
+                            {t.name}
+                            <span className="ml-1.5 text-muted-foreground font-normal">
+                                ({t.sections.filter(s => s.enabled).length} sections)
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Template editor */}
+            {showTemplateEditor && (
+                <div className="card-base p-4 flex flex-col gap-3">
+                    <p className="text-sm font-semibold">
+                        Editing: {template.name}
+                    </p>
+                    <div className="flex flex-col gap-2">
+                        {template.sections.map(section => (
+                            <div key={section.id} className="flex items-center gap-3">
+                                <button
+                                    onClick={() => toggleSection(template.id, section.id)}
+                                    className={cn(
+                                        'flex size-5 shrink-0 items-center justify-center rounded border-2 transition-all',
+                                        section.enabled ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
+                                    )}
+                                    disabled={section.isSystem}
+                                >
+                                    {section.enabled && <CheckCircle2 className="size-3" />}
+                                </button>
+                                <span className={cn('text-sm flex-1', !section.enabled && 'text-muted-foreground line-through')}>{section.label}</span>
+                                {section.isSystem
+                                    ? <span className="text-xs text-muted-foreground">required</span>
+                                    : (
+                                        <button onClick={() => removeSection(template.id, section.id)} className="text-muted-foreground hover:text-destructive">
+                                            <XCircle className="size-3.5" />
+                                        </button>
+                                    )
+                                }
+                            </div>
+                        ))}
+                    </div>
+                    {/* Add custom section */}
+                    <div className="flex gap-2 mt-1">
+                        <Input
+                            value={newSectionName}
+                            onChange={e => setNewSectionName(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addSection(template.id)}
+                            placeholder="Add section e.g. Harvest Offering"
+                            className="h-8 text-xs flex-1"
+                        />
+                        <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => addSection(template.id)} disabled={!newSectionName.trim()}>
+                            <Plus className="size-3" /> Add
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Offering sections grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {activeSections.map(section => {
+                    const total = sectionTotal(section.id);
+                    const e     = getEntry(section.id);
+                    return (
+                        <div key={section.id} className="card-base p-4 flex flex-col gap-3">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-semibold">{section.label}</h4>
+                                {total > 0 && (
+                                    <span className="text-sm font-bold text-primary tabular-nums">
+                                        {formatCurrency(total)}
+                                    </span>
+                                )}
+                            </div>
+                            {PAYMENT_METHODS.map(method => {
+                                const key  = method.toLowerCase() as keyof SectionEntry;
+                                const val  = (e as any)[key];
+                                return (
+                                    <div key={method}>
+                                        <label className="text-xs text-muted-foreground mb-1 block">{method}</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="0"
+                                            value={val}
+                                            onChange={ev => setEntry(section.id, method, ev.target.value)}
+                                            className="h-8 text-sm font-semibold"
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Grand total + submit */}
+            <div className="flex items-center justify-between rounded-xl bg-primary/5 border border-primary/20 p-5">
+                <div>
+                    <p className="text-sm text-muted-foreground">Grand Total Collected</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        {activeSections.length} section{activeSections.length !== 1 ? 's' : ''} · {serviceName} · {serviceDate}
+                    </p>
+                </div>
+                <span className="text-3xl font-bold text-primary tabular-nums">
+                    {formatCurrency(grandTotal)}
+                </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Button variant="outline" className="h-10 gap-2" disabled={grandTotal === 0}>
+                    <Download className="size-4" />
+                    Save as Draft
+                </Button>
+                <Button className="h-10 font-semibold gap-2" disabled={grandTotal === 0}>
+                    Record Offering
+                </Button>
             </div>
 
             {/* Recent offerings */}

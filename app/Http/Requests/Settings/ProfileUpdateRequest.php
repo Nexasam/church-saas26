@@ -10,13 +10,16 @@ class ProfileUpdateRequest extends FormRequest
 {
     use ProfileValidationRules;
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
-        return $this->profileRules($this->user()->id);
+        $user = $this->user();
+
+        // Only the platform admin (Church OS owner) can change their email
+        if ($user->is_platform_admin) {
+            return $this->profileRules($user->id);
+        }
+
+        // Everyone else (church owners + invited admins) — name only
+        return ['name' => $this->nameRules()];
     }
 }

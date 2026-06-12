@@ -227,7 +227,7 @@ function AutomationPanel() {
                         { trigger: 'Member misses 2 services', action: 'Auto-create follow-up task → assign to zone worker', level: 0 },
                         { trigger: 'Follow-up unresolved for 5 days', action: 'Escalate to Department Head', level: 1 },
                         { trigger: 'Still unresolved after escalation', action: 'Escalate to Pastor', level: 2 },
-                        { trigger: 'Soul won (evangelism)', action: 'Auto-generate 5-point follow-up schedule (Day 1, 3, 7, 14, 30)', level: 0 },
+                        { trigger: 'Members Reached (evangelism)', action: 'Auto-generate 5-point follow-up schedule (Day 1, 3, 7, 14, 30)', level: 0 },
                     ].map((rule, i) => (
                         <div key={i} className="flex items-start gap-3 rounded-xl border border-border p-3">
                             <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground mt-0.5">

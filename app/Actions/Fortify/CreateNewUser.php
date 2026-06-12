@@ -15,35 +15,31 @@ class CreateNewUser implements CreatesNewUsers
 {
     use PasswordValidationRules, ProfileValidationRules;
 
-    /**
-     * Validate and create a newly registered user.
-     *
-     * @param  array<string, string>  $input
-     */
     public function create(array $input): User
     {
         Validator::make($input, [
+            'church_name' => ['required', 'string', 'max:255'],
             ...$this->profileRules(),
-            'password' => $this->passwordRules(),
+            'password'    => $this->passwordRules(),
         ])->validate();
 
         return DB::transaction(function () use ($input) {
-            // Find or create a church
-            $church = Church::firstOrCreate(
-                ['name' => $input['church_name'] ?? 'My Church'],
-                ['address' => '', 'has_branches' => false]
-            );
+            // Create the church using the name they gave on register
+            $church = Church::create([
+                'name'                => $input['church_name'],
+                'address'             => '',
+                'has_branches'        => false,
+                'onboarding_complete' => false,
+            ]);
 
-            // Seed default roles for this church if they don't exist yet
+            // Seed the 6 default roles for this church
             Role::seedForChurch($church->id);
 
-            // Get the super_admin role
             $superAdminRole = Role::withoutGlobalScopes()
                 ->where('church_id', $church->id)
                 ->where('slug', 'super_admin')
                 ->first();
 
-            // The registering user becomes the church's super admin
             return User::create([
                 'name'              => $input['name'],
                 'email'             => $input['email'],
