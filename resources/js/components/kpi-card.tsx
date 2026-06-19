@@ -10,20 +10,12 @@ type KpiCardProps = {
     sparkline?: number[];
     sparklineColor?: string;
     icon: LucideIcon;
-    iconColor?: string;
+    accent?: string;
     badge?: string;
-    badgeColor?: 'green' | 'red' | 'yellow' | 'blue' | 'purple';
+    badgeColor?: 'green' | 'red' | 'amber' | 'blue' | 'purple';
     subtitle?: string;
     className?: string;
     loading?: boolean;
-};
-
-const badgeColorMap = {
-    green: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-    red: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-    yellow: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    blue: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    purple: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
 };
 
 export function KpiCard({
@@ -34,7 +26,6 @@ export function KpiCard({
     sparkline,
     sparklineColor = 'oklch(0.55 0.18 265)',
     icon: Icon,
-    iconColor = 'text-primary',
     badge,
     badgeColor = 'blue',
     subtitle,
@@ -42,83 +33,89 @@ export function KpiCard({
     loading = false,
 }: KpiCardProps) {
     const isPositive = trend !== undefined && trend >= 0;
-    const TrendIcon = isPositive ? TrendingUp : TrendingDown;
+    const TrendIcon  = isPositive ? TrendingUp : TrendingDown;
+
+    // Scale value font size based on string length to prevent overflow
+    const strLen   = String(value).length;
+    const valueSize = strLen > 12 ? 'text-base'
+                    : strLen > 9  ? 'text-lg'
+                    : strLen > 6  ? 'text-xl'
+                    : 'text-2xl';
 
     if (loading) {
         return (
-            <div className={cn('card-base p-5 animate-pulse', className)}>
-                <div className="flex items-center justify-between mb-4">
-                    <div className="h-4 w-24 bg-muted rounded" />
-                    <div className="size-9 bg-muted rounded-lg" />
-                </div>
-                <div className="h-8 w-32 bg-muted rounded mb-2" />
-                <div className="h-3 w-20 bg-muted rounded" />
+            <div className={cn('h-36 rounded-xl border border-border bg-card p-4 animate-pulse flex flex-col justify-between', className)}>
+                <div className="h-2.5 w-20 bg-muted rounded" />
+                <div className="h-7 w-24 bg-muted rounded" />
+                <div className="h-2 w-16 bg-muted rounded" />
             </div>
         );
     }
 
     return (
-        <div
-            className={cn(
-                'card-base card-hover p-5 flex flex-col gap-4 group cursor-default',
-                className,
+        <div className={cn(
+            'relative h-36 overflow-hidden rounded-xl border border-border bg-card',
+            'hover:border-border/70 hover:shadow-sm transition-all duration-150',
+            className,
+        )}>
+            {/* Sparkline watermark */}
+            {sparkline && sparkline.length > 0 && (
+                <div className="pointer-events-none absolute bottom-0 right-0 w-20 h-10 opacity-[0.07]">
+                    <Sparkline data={sparkline} color={sparklineColor} height={40} />
+                </div>
             )}
-        >
-            {/* Header row */}
-            <div className="flex items-start justify-between">
-                <div className="flex flex-col gap-1 min-w-0">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+
+            <div className="relative h-full flex flex-col justify-between p-4">
+
+                {/* Top row: title + icon */}
+                <div className="flex items-start justify-between gap-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground leading-tight max-w-[70%]">
                         {title}
-                    </span>
+                    </p>
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
+                        <Icon className="size-3.5" />
+                    </div>
+                </div>
+
+                {/* Middle: badge (optional) + value + subtitle */}
+                <div className="flex flex-col gap-0.5">
                     {badge && (
-                        <span className={cn('inline-flex items-center w-fit rounded-md px-2 py-0.5 text-xs font-medium', badgeColorMap[badgeColor])}>
+                        <span className={cn(
+                            'self-start text-[9px] font-bold rounded-full px-1.5 py-0.5 mb-0.5 whitespace-nowrap',
+                            badgeColor === 'red'    && 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+                            badgeColor === 'green'  && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+                            badgeColor === 'amber'  && 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                            badgeColor === 'blue'   && 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                            badgeColor === 'purple' && 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+                        )}>
                             {badge}
                         </span>
                     )}
-                </div>
-                <div className={cn(
-                    'flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted/60 transition-smooth group-hover:bg-muted',
-                    iconColor,
-                )}>
-                    <Icon className="size-4" />
-                </div>
-            </div>
-
-            {/* Value */}
-            <div className="flex items-end justify-between gap-3">
-                <div className="flex flex-col gap-1">
-                    <span className="kpi-value animate-count-up">
+                    <p className={cn('font-bold tracking-tight leading-none tabular-nums text-foreground', valueSize)}>
                         {value}
-                    </span>
+                    </p>
                     {subtitle && (
-                        <span className="text-xs text-muted-foreground">{subtitle}</span>
+                        <p className="text-[10px] text-muted-foreground leading-tight line-clamp-1 mt-0.5">
+                            {subtitle}
+                        </p>
                     )}
+                </div>
+
+                {/* Bottom row: trend only */}
+                <div>
                     {trend !== undefined && (
                         <div className={cn(
-                            'flex items-center gap-1 text-xs font-medium',
-                            isPositive
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : 'text-red-500 dark:text-red-400',
+                            'flex items-center gap-0.5 text-[10px] font-semibold',
+                            isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400',
                         )}>
-                            <TrendIcon className="size-3" />
+                            <TrendIcon className="size-2.5 shrink-0" />
                             <span>{Math.abs(trend)}%</span>
                             {trendLabel && (
-                                <span className="text-muted-foreground font-normal">{trendLabel}</span>
+                                <span className="font-normal text-muted-foreground ml-0.5 truncate">{trendLabel}</span>
                             )}
                         </div>
                     )}
                 </div>
-
-                {/* Sparkline */}
-                {sparkline && sparkline.length > 0 && (
-                    <div className="w-20 shrink-0 opacity-80 group-hover:opacity-100 transition-smooth">
-                        <Sparkline
-                            data={sparkline}
-                            color={sparklineColor}
-                            height={40}
-                        />
-                    </div>
-                )}
             </div>
         </div>
     );

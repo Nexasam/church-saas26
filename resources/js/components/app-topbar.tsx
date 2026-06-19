@@ -47,7 +47,7 @@ const quickActions = [
     { label: 'Add Member', href: '/members/create', icon: Users },
     { label: 'Record Follow-Up', href: '/followups/create', icon: UserSearch },
     { label: 'Log Finance Entry', href: '/finance/create', icon: CreditCard },
-    { label: 'Log Members Reached', href: '/evangelism/create', icon: TrendingUp },
+    { label: 'Log Members Reached', href: '/evangelism', icon: TrendingUp },
     { label: 'Open Care Case', href: '/care/create', icon: HeartHandshake },
 ];
 

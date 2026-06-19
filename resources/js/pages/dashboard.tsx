@@ -124,19 +124,17 @@ export default function Dashboard() {
                 </div>
 
                 {/* ── KPI Grid ───────────────────────────────────────────── */}
-                <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6 stagger-children">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6 stagger-children">
                     <KpiCard
                         title="Members Reached"
                         value={formatNumber(m.soulsWon.value)}
                         trend={m.soulsWon.trend}
                         trendLabel="vs last month"
                         sparkline={m.soulsWon.sparkline}
-                        sparklineColor="oklch(0.52 0.15 162)"
+                        sparklineColor="oklch(0.52 0.18 162)"
                         icon={Star}
-                        iconColor="text-emerald-600"
                         badge="This Month"
                         badgeColor="green"
-                        className="xl:col-span-1"
                     />
                     <KpiCard
                         title="Active Members"
@@ -144,10 +142,8 @@ export default function Dashboard() {
                         trend={m.activeMembers.trend}
                         trendLabel="vs last month"
                         sparkline={m.activeMembers.sparkline}
-                        sparklineColor="oklch(0.55 0.20 300)"
+                        sparklineColor="oklch(0.55 0.20 265)"
                         icon={Users}
-                        iconColor="text-primary"
-                        className="xl:col-span-1"
                     />
                     <KpiCard
                         title="Pending Follow-Ups"
@@ -155,11 +151,9 @@ export default function Dashboard() {
                         trend={m.pendingFollowUps.trend}
                         trendLabel="vs last week"
                         icon={UserSearch}
-                        iconColor="text-amber-600"
                         badge={`${m.pendingFollowUps.urgent} Urgent`}
                         badgeColor="red"
                         subtitle="Requires attention"
-                        className="xl:col-span-1"
                     />
                     <KpiCard
                         title="Monthly Income"
@@ -169,8 +163,6 @@ export default function Dashboard() {
                         sparkline={m.monthlyIncome.sparkline}
                         sparklineColor="oklch(0.65 0.16 84)"
                         icon={CreditCard}
-                        iconColor="text-amber-600"
-                        className="xl:col-span-1"
                     />
                     <KpiCard
                         title="Conversion Rate"
@@ -178,9 +170,7 @@ export default function Dashboard() {
                         trend={m.conversionRate.trend}
                         trendLabel="vs last month"
                         icon={TrendingUp}
-                        iconColor="text-purple-600"
                         subtitle="Members Reached → Established"
-                        className="xl:col-span-1"
                     />
                     <KpiCard
                         title="Attendance"
@@ -190,9 +180,7 @@ export default function Dashboard() {
                         sparkline={m.attendance.sparkline}
                         sparklineColor="oklch(0.60 0.15 230)"
                         icon={Users}
-                        iconColor="text-blue-600"
                         subtitle="Last Sunday service"
-                        className="xl:col-span-1"
                     />
                 </div>
 

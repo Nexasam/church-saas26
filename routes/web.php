@@ -61,8 +61,11 @@ Route::middleware(['auth'])->group(function () {
     Route::inertia('followups/create', 'followups')->name('followups.create');
 
     // Evangelism
-    Route::inertia('evangelism', 'evangelism')->name('evangelism.index');
-    Route::inertia('evangelism/create', 'evangelism')->name('evangelism.create');
+    Route::get('evangelism',                                   [\App\Http\Controllers\EvangelismController::class, 'index'])->name('evangelism.index');
+    Route::post('evangelism',                                  [\App\Http\Controllers\EvangelismController::class, 'store'])->name('evangelism.store');
+    Route::patch('evangelism/{prospectiveMember}',             [\App\Http\Controllers\EvangelismController::class, 'update'])->name('evangelism.update');
+    Route::post('evangelism/{prospectiveMember}/convert',      [\App\Http\Controllers\EvangelismController::class, 'convert'])->name('evangelism.convert');
+    Route::delete('evangelism/{prospectiveMember}',            [\App\Http\Controllers\EvangelismController::class, 'destroy'])->name('evangelism.destroy');
 
     // Finance
     Route::inertia('finance', 'finance')->name('finance.index');
@@ -71,9 +74,13 @@ Route::middleware(['auth'])->group(function () {
     Route::inertia('finance/reconciliation', 'finance')->name('finance.reconciliation');
 
     // Members
-    Route::inertia('members', 'members')->name('members.index');
-    Route::inertia('members/create', 'members')->name('members.create');
-    Route::inertia('members/{id}', 'members')->name('members.show');
+    Route::get('members',                [\App\Http\Controllers\MemberController::class, 'index'])->name('members.index');
+    Route::post('members',               [\App\Http\Controllers\MemberController::class, 'store'])->name('members.store');
+    Route::patch('members/{member}',     [\App\Http\Controllers\MemberController::class, 'update'])->name('members.update');
+    Route::patch('members/{member}/toggle-status', [\App\Http\Controllers\MemberController::class, 'toggleStatus'])->name('members.toggle-status');
+    Route::delete('members/{member}',    [\App\Http\Controllers\MemberController::class, 'destroy'])->name('members.destroy');
+    Route::post('members/import',        [\App\Http\Controllers\MemberController::class, 'import'])->name('members.import');
+    Route::get('members/export',         [\App\Http\Controllers\MemberController::class, 'export'])->name('members.export');
 
     // Departments
     Route::inertia('departments', 'departments')->name('departments.index');
@@ -86,7 +93,10 @@ Route::middleware(['auth'])->group(function () {
     Route::inertia('love', 'love')->name('love.index');
 
     // Attendance
-    Route::inertia('attendance', 'attendance')->name('attendance.index');
+    Route::get('attendance',            [\App\Http\Controllers\AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('attendance/mark',      [\App\Http\Controllers\AttendanceController::class, 'mark'])->name('attendance.mark');
+    Route::post('attendance/bulk-mark', [\App\Http\Controllers\AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
+    Route::get('attendance/export',     [\App\Http\Controllers\AttendanceController::class, 'export'])->name('attendance.export');
 
     // SMS
     Route::inertia('sms', 'sms')->name('sms.index');

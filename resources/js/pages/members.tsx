@@ -1,8 +1,8 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
-    ArrowRight,
     Calendar,
     Check,
+    ChevronLeft,
     ChevronRight,
     Download,
     FileUp,
@@ -17,7 +17,8 @@ import {
     X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -33,15 +34,61 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Sheet,
     SheetContent,
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { mockMembers, type Member } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
+
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+type Member = {
+    id: number;
+    name: string;
+    first_name: string;
+    last_name: string;
+    initials: string;
+    email: string | null;
+    phone: string | null;
+    gender: 'male' | 'female' | null;
+    dob: string | null;
+    address: string | null;
+    occupation: string | null;
+    home_church: string | null;
+    notes: string | null;
+    follow_up_stage: string;
+    membership_type: 'full' | 'visitor' | 'youth' | 'child';
+    status: 'active' | 'inactive';
+    joined_at: string | null;
+    departments: string[];
+    department_ids: number[];
+    attendance_rate: number;
+    created_at: string;
+};
+
+type Department = { id: number; name: string };
+
+type PaginatedMembers = {
+    data: Member[];
+    current_page: number;
+    last_page: number;
+    total: number;
+    per_page: number;
+    from: number;
+    to: number;
+    links: { url: string | null; label: string; active: boolean }[];
+};
+
+type PageProps = {
+    members: PaginatedMembers;
+    departments: Department[];
+    stats: { total: number; active: number; inactive: number };
+    filters: { search?: string; status?: string; department?: string };
+};
 
 const statusConfig = {
     active: { label: 'Active', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
@@ -56,15 +103,15 @@ const membershipConfig = {
 };
 
 const timelineTypeIcon: Record<string, string> = {
-    attendance: '📋',
-    follow_up: '📞',
-    note: '📝',
-    prayer: '🙏',
-    milestone: '🏆',
-    task: '✅',
+    attendance: 'ðŸ“‹',
+    follow_up: 'ðŸ“ž',
+    note: 'ðŸ“',
+    prayer: 'ðŸ™',
+    milestone: 'ðŸ†',
+    task: 'âœ…',
 };
 
-// ── Attendance Log ────────────────────────────────────────────────────────────
+// â”€â”€ Attendance Log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type AttendanceEntry = {
     id: string;
@@ -188,7 +235,7 @@ function AttendanceLog({ member }: { member: Member }) {
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold">{entry.service}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{entry.date} · by {entry.markedBy}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{entry.date} Â· by {entry.markedBy}</p>
                         </div>
                     </div>
                 ))}
@@ -200,7 +247,7 @@ function AttendanceLog({ member }: { member: Member }) {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Calendar className="size-4 text-primary" />
-                            Mark Attendance — {member.name}
+                            Mark Attendance â€” {member.name}
                         </DialogTitle>
                     </DialogHeader>
                     <div className="flex flex-col gap-4 py-2">
@@ -237,7 +284,7 @@ function AttendanceLog({ member }: { member: Member }) {
     );
 }
 
-// ── Edit Profile Modal ────────────────────────────────────────────────────────
+// â”€â”€ Edit Profile Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function EditProfileModal({ member, open, onClose }: { member: Member; open: boolean; onClose: () => void }) {
     const [form, setForm] = useState({
@@ -268,7 +315,7 @@ function EditProfileModal({ member, open, onClose }: { member: Member; open: boo
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <User className="size-4 text-primary" />
-                        Edit Profile — {member.name}
+                        Edit Profile â€” {member.name}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -366,7 +413,7 @@ function EditProfileModal({ member, open, onClose }: { member: Member; open: boo
     );
 }
 
-// ── Member Profile ────────────────────────────────────────────────────────────
+// â”€â”€ Member Profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function MemberProfile({ member, onClose, attendancePeriod }: {
     member: Member | null;
@@ -439,7 +486,7 @@ function MemberProfile({ member, onClose, attendancePeriod }: {
                                 <p className="text-xs text-muted-foreground mt-0.5">Departments</p>
                             </div>
                             <div className="rounded-lg bg-muted/50 p-3 text-center">
-                                <p className="text-xs font-medium truncate">{member.homeChurch || '—'}</p>
+                                <p className="text-xs font-medium truncate">{member.homeChurch || 'â€”'}</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">Home Church</p>
                             </div>
                         </div>
@@ -481,7 +528,7 @@ function MemberProfile({ member, onClose, attendancePeriod }: {
     );
 }
 
-// ── Import Modal ──────────────────────────────────────────────────────────────
+// â”€â”€ Import Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ImportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
     const [dragOver, setDragOver] = useState(false);
@@ -600,7 +647,7 @@ function ImportModal({ open, onClose }: { open: boolean; onClose: () => void }) 
                         <div className="flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2">
                             <Check className="size-4 text-emerald-600 shrink-0" />
                             <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                                <span className="font-medium">{file?.name}</span> — {preview.length - 1} member{preview.length - 1 !== 1 ? 's' : ''} detected
+                                <span className="font-medium">{file?.name}</span> â€” {preview.length - 1} member{preview.length - 1 !== 1 ? 's' : ''} detected
                             </p>
                         </div>
 
@@ -617,7 +664,7 @@ function ImportModal({ open, onClose }: { open: boolean; onClose: () => void }) 
                                     {preview.slice(1).map((row, i) => (
                                         <tr key={i} className="hover:bg-muted/20">
                                             {row.map((cell, j) => (
-                                                <td key={j} className="px-3 py-2 text-muted-foreground whitespace-nowrap">{cell || '—'}</td>
+                                                <td key={j} className="px-3 py-2 text-muted-foreground whitespace-nowrap">{cell || 'â€”'}</td>
                                             ))}
                                         </tr>
                                     ))}
@@ -658,7 +705,7 @@ function ImportModal({ open, onClose }: { open: boolean; onClose: () => void }) 
     );
 }
 
-// ── Export helper ─────────────────────────────────────────────────────────────
+// â”€â”€ Export helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function exportMembersCSV(members: typeof mockMembers) {
     const header = ['Name', 'Email', 'Phone', 'Gender', 'Status', 'Membership Type', 'Departments', 'Home Church', 'Joined At', 'Attendance Rate'];
@@ -674,26 +721,188 @@ function exportMembersCSV(members: typeof mockMembers) {
     a.click();
 }
 
-export default function Members() {
-    const [search, setSearch] = useState('');
-    const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'new'>('all');
-    const [attendancePeriod, setAttendancePeriod] = useState<'monthly' | 'quarterly'>('monthly');
-    const [importOpen, setImportOpen] = useState(false);
+// â”€â”€â”€ Add Member Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    // Simulate different attendance rates per period
+function AddMemberModal({ open, onClose, departments }: { open: boolean; onClose: () => void; departments: Department[] }) {
+    const { data, setData, post, processing, errors, reset } = useForm({
+        first_name:      '',
+        last_name:       '',
+        email:           '',
+        phone:           '',
+        gender:          '',
+        dob:             '',
+        address:         '',
+        occupation:      '',
+        home_church:     '',
+        membership_type: 'full',
+        joined_at:       new Date().toISOString().split('T')[0],
+        department_ids:  [] as number[],
+        notes:           '',
+    });
+
+    function submit(e: React.FormEvent) {
+        e.preventDefault();
+        post('/members', {
+            onSuccess: () => { toast.success('Member added.'); reset(); onClose(); },
+        });
+    }
+
+    function toggleDept(id: number) {
+        setData('department_ids', data.department_ids.includes(id)
+            ? data.department_ids.filter(d => d !== id)
+            : [...data.department_ids, id]
+        );
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Plus className="size-4 text-primary" />
+                        Add New Member
+                    </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="flex flex-col gap-4 py-2">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <Label className="field-label mb-1.5 block">First Name *</Label>
+                            <Input value={data.first_name} onChange={e => setData('first_name', e.target.value)} className="h-9" required />
+                            <InputError message={errors.first_name} />
+                        </div>
+                        <div>
+                            <Label className="field-label mb-1.5 block">Last Name *</Label>
+                            <Input value={data.last_name} onChange={e => setData('last_name', e.target.value)} className="h-9" required />
+                            <InputError message={errors.last_name} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <Label className="field-label mb-1.5 block">Phone</Label>
+                            <Input value={data.phone} onChange={e => setData('phone', e.target.value)} placeholder="+234 800 000 0000" className="h-9" />
+                            <InputError message={errors.phone} />
+                        </div>
+                        <div>
+                            <Label className="field-label mb-1.5 block">Email</Label>
+                            <Input type="email" value={data.email} onChange={e => setData('email', e.target.value)} className="h-9" />
+                            <InputError message={errors.email} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <Label className="field-label mb-1.5 block">Gender</Label>
+                            <select value={data.gender} onChange={e => setData('gender', e.target.value)} className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                                <option value="">Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </select>
+                        </div>
+                        <div>
+                            <Label className="field-label mb-1.5 block">Date of Birth</Label>
+                            <Input type="date" value={data.dob} onChange={e => setData('dob', e.target.value)} className="h-9" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <Label className="field-label mb-1.5 block">Membership Type *</Label>
+                            <select value={data.membership_type} onChange={e => setData('membership_type', e.target.value)} className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                                <option value="full">Full Member</option>
+                                <option value="visitor">Visitor</option>
+                                <option value="youth">Youth</option>
+                                <option value="child">Child</option>
+                            </select>
+                        </div>
+                        <div>
+                            <Label className="field-label mb-1.5 block">Joined Date</Label>
+                            <Input type="date" value={data.joined_at} onChange={e => setData('joined_at', e.target.value)} className="h-9" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <Label className="field-label mb-1.5 block">Occupation</Label>
+                            <Input value={data.occupation} onChange={e => setData('occupation', e.target.value)} className="h-9" />
+                        </div>
+                        <div>
+                            <Label className="field-label mb-1.5 block">Home Church / Zone</Label>
+                            <Input value={data.home_church} onChange={e => setData('home_church', e.target.value)} placeholder="e.g. Zone 3 HC" className="h-9" />
+                        </div>
+                    </div>
+                    <div>
+                        <Label className="field-label mb-1.5 block">Address</Label>
+                        <Input value={data.address} onChange={e => setData('address', e.target.value)} placeholder="e.g. 14 Church St, Lagos" className="h-9" />
+                    </div>
+                    {departments.length > 0 && (
+                        <div>
+                            <Label className="field-label mb-2 block">Departments</Label>
+                            <div className="flex flex-wrap gap-2">
+                                {departments.map(d => (
+                                    <button type="button" key={d.id} onClick={() => toggleDept(d.id)}
+                                        className={cn('text-xs rounded-full border px-3 py-1 transition-all',
+                                            data.department_ids.includes(d.id)
+                                                ? 'border-primary bg-primary/5 text-primary'
+                                                : 'border-border text-muted-foreground hover:border-primary/40'
+                                        )}>
+                                        {data.department_ids.includes(d.id) && <Check className="inline size-2.5 mr-1" />}
+                                        {d.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex gap-3 pt-1">
+                        <Button type="submit" className="flex-1" disabled={processing}>Add Member</Button>
+                        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export default function Members() {
+    const { members, departments, stats, filters } = usePage<PageProps>().props;
+
+    const [selectedMember,   setSelectedMember]   = useState<Member | null>(null);
+    const [attendancePeriod, setAttendancePeriod] = useState<'monthly' | 'quarterly'>('monthly');
+    const [importOpen,       setImportOpen]       = useState(false);
+    const [addOpen,          setAddOpen]          = useState(false);
+
+    // Server-side search/filter via Inertia
+    function applyFilter(params: Record<string, string>) {
+        router.get('/members', { ...filters, ...params }, { preserveState: true, preserveScroll: true });
+    }
+
+    function handleSearch(val: string) {
+        applyFilter({ search: val });
+    }
+
+    function handleStatusFilter(status: string) {
+        applyFilter({ status: status === 'all' ? '' : status });
+    }
+
+    function handleExport() {
+        window.location.href = '/members/export';
+    }
+
+    function toggleStatus(member: Member) {
+        router.patch(`/members/${member.id}/toggle-status`, {}, {
+            onSuccess: () => toast.success(member.status === 'active' ? 'Member deactivated.' : 'Member reactivated.'),
+        });
+    }
+
+    function deleteMember(member: Member) {
+        if (!confirm(`Remove ${member.name} from this church?`)) return;
+        router.delete(`/members/${member.id}`, {
+            onSuccess: () => toast.success(`${member.name} removed.`),
+        });
+    }
+
     const getAttendanceRate = (base: number, period: 'monthly' | 'quarterly') => {
         if (period === 'quarterly') return Math.min(100, Math.round(base * 0.92));
         return base;
     };
 
-    const filtered = mockMembers.filter((m) => {
-        const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) ||
-            m.email.toLowerCase().includes(search.toLowerCase()) ||
-            m.phone.includes(search);
-        const matchStatus = statusFilter === 'all' || m.status === statusFilter;
-        return matchSearch && matchStatus;
-    });
+    const currentStatus = filters.status || 'all';
 
     return (
         <>
@@ -704,7 +913,7 @@ export default function Members() {
                     <div>
                         <h1 className="text-lg font-semibold tracking-tight">Members</h1>
                         <p className="text-sm text-muted-foreground mt-0.5">
-                            {mockMembers.length} total · {mockMembers.filter((m) => m.status === 'active').length} active
+                            {stats.total} total Â· {stats.active} active Â· {stats.inactive} inactive
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -712,11 +921,11 @@ export default function Members() {
                             <FileUp className="size-3.5" />
                             Import
                         </Button>
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => exportMembersCSV(filtered)}>
+                        <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={handleExport}>
                             <Download className="size-3.5" />
                             Export
                         </Button>
-                        <Button size="sm" className="h-8 gap-1.5">
+                        <Button size="sm" className="h-8 gap-1.5" onClick={() => setAddOpen(true)}>
                             <Plus className="size-3.5" />
                             Add Member
                         </Button>
@@ -730,71 +939,49 @@ export default function Members() {
                         <Input
                             className="h-8 pl-8 text-sm bg-muted/50 border-transparent"
                             placeholder="Search by name, email, phone..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            defaultValue={filters.search ?? ''}
+                            onChange={e => handleSearch(e.target.value)}
                         />
                     </div>
                     <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
-                        {(['all', 'active', 'inactive', 'new'] as const).map((s) => (
-                            <button
-                                key={s}
-                                onClick={() => setStatusFilter(s)}
-                                className={cn(
-                                    'px-3 py-1 rounded-md text-xs font-medium transition-base capitalize',
-                                    statusFilter === s
-                                        ? 'bg-background shadow-xs text-foreground'
-                                        : 'text-muted-foreground hover:text-foreground',
-                                )}
-                            >
+                        {(['all', 'active', 'inactive'] as const).map(s => (
+                            <button key={s} onClick={() => handleStatusFilter(s)}
+                                className={cn('px-3 py-1 rounded-md text-xs font-medium transition-base capitalize',
+                                    currentStatus === s ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground hover:text-foreground'
+                                )}>
                                 {s}
                             </button>
                         ))}
                     </div>
-                    {/* Attendance period toggle */}
                     <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5 ml-auto">
                         {(['monthly', 'quarterly'] as const).map(p => (
-                            <button
-                                key={p}
-                                onClick={() => setAttendancePeriod(p)}
-                                className={cn(
-                                    'px-3 py-1 rounded-md text-xs font-medium transition-base capitalize',
-                                    attendancePeriod === p
-                                        ? 'bg-background shadow-xs text-foreground'
-                                        : 'text-muted-foreground hover:text-foreground',
-                                )}
-                            >
+                            <button key={p} onClick={() => setAttendancePeriod(p)}
+                                className={cn('px-3 py-1 rounded-md text-xs font-medium transition-base capitalize',
+                                    attendancePeriod === p ? 'bg-background shadow-xs text-foreground' : 'text-muted-foreground hover:text-foreground'
+                                )}>
                                 {p}
                             </button>
                         ))}
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                        <Filter className="size-3.5" />
-                        Filters
-                    </Button>
                 </div>
 
-                {/* Members Table */}
+                {/* Table */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin">
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 z-10">
                             <tr className="border-b border-border bg-muted/80 backdrop-blur-sm">
-                                {['Member', 'Departments', 'Home Church', `Attendance (${attendancePeriod === 'monthly' ? 'Monthly' : 'Quarterly'})`, 'Joined', 'Status', ''].map((h) => (
-                                    <th key={h} className="text-left text-xs font-medium text-muted-foreground px-5 py-2.5 uppercase tracking-wider whitespace-nowrap">
-                                        {h}
-                                    </th>
+                                {['Member', 'Departments', 'Home Church', `Attendance (${attendancePeriod === 'monthly' ? 'Monthly' : 'Quarterly'})`, 'Joined', 'Status', ''].map(h => (
+                                    <th key={h} className="text-left text-xs font-medium text-muted-foreground px-5 py-2.5 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {filtered.map((member) => {
-                                const sc = statusConfig[member.status];
-                                const mc = membershipConfig[member.membershipType];
+                            {members.data.map(member => {
+                                const sc = statusConfig[member.status] ?? statusConfig.inactive;
+                                const mc = membershipConfig[member.membership_type] ?? membershipConfig.full;
                                 return (
-                                    <tr
-                                        key={member.id}
-                                        className="hover:bg-muted/20 transition-base cursor-pointer group"
-                                        onClick={() => setSelectedMember(member)}
-                                    >
+                                    <tr key={member.id} className="hover:bg-muted/20 transition-base cursor-pointer group"
+                                        onClick={() => setSelectedMember(member)}>
                                         <td className="px-5 py-3.5">
                                             <div className="flex items-center gap-3">
                                                 <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
@@ -802,57 +989,50 @@ export default function Members() {
                                                 </div>
                                                 <div>
                                                     <p className="font-medium">{member.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{member.phone}</p>
+                                                    <p className="text-xs text-muted-foreground">{member.phone ?? member.email ?? 'â€”'}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-5 py-3.5">
                                             <div className="flex gap-1 flex-wrap">
-                                                {member.departments.slice(0, 2).map((d) => (
-                                                    <span key={d} className="text-xs bg-muted text-muted-foreground rounded px-1.5 py-0.5">
-                                                        {d}
-                                                    </span>
+                                                {member.departments.slice(0, 2).map(d => (
+                                                    <span key={d} className="text-xs bg-muted text-muted-foreground rounded px-1.5 py-0.5">{d}</span>
                                                 ))}
                                                 {member.departments.length > 2 && (
                                                     <span className="text-xs text-muted-foreground">+{member.departments.length - 2}</span>
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="px-5 py-3.5 text-muted-foreground text-sm">
-                                            {member.homeChurch || '—'}
-                                        </td>
+                                        <td className="px-5 py-3.5 text-muted-foreground text-sm">{member.home_church || 'â€”'}</td>
                                         <td className="px-5 py-3.5">
                                             <div className="flex items-center gap-2">
                                                 <div className="flex-1 max-w-16 h-1.5 rounded-full bg-muted overflow-hidden">
-                                                    <div
-                                                        className="h-full rounded-full bg-primary/70"
-                                                        style={{ width: `${getAttendanceRate(member.attendanceRate, attendancePeriod)}%` }}
-                                                    />
+                                                    <div className="h-full rounded-full bg-primary/70"
+                                                        style={{ width: `${getAttendanceRate(member.attendance_rate, attendancePeriod)}%` }} />
                                                 </div>
-                                                <span className="text-xs font-medium tabular-nums">{getAttendanceRate(member.attendanceRate, attendancePeriod)}%</span>
+                                                <span className="text-xs font-medium tabular-nums">{getAttendanceRate(member.attendance_rate, attendancePeriod)}%</span>
                                             </div>
                                         </td>
-                                        <td className="px-5 py-3.5 text-muted-foreground text-sm whitespace-nowrap">
-                                            {member.joinedAt}
-                                        </td>
+                                        <td className="px-5 py-3.5 text-muted-foreground text-sm whitespace-nowrap">{member.joined_at ?? 'â€”'}</td>
                                         <td className="px-5 py-3.5">
-                                            <span className={cn('text-xs font-medium rounded-full px-2.5 py-0.5', sc.color)}>
-                                                {sc.label}
-                                            </span>
+                                            <span className={cn('text-xs font-medium rounded-full px-2.5 py-0.5', sc.color)}>{sc.label}</span>
                                         </td>
                                         <td className="px-5 py-3.5">
                                             <DropdownMenu>
-                                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                    <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100 transition-smooth">
+                                                <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                                                    <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100">
                                                         <MoreHorizontal className="size-3.5" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-40">
                                                     <DropdownMenuItem onClick={() => setSelectedMember(member)}>View profile</DropdownMenuItem>
-                                                    <DropdownMenuItem>Edit member</DropdownMenuItem>
-                                                    <DropdownMenuItem>Add follow-up</DropdownMenuItem>
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem className="text-destructive">Deactivate</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => toggleStatus(member)}>
+                                                        {member.status === 'active' ? 'Deactivate' : 'Reactivate'}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-destructive" onClick={() => deleteMember(member)}>
+                                                        Remove member
+                                                    </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </td>
@@ -862,22 +1042,44 @@ export default function Members() {
                         </tbody>
                     </table>
 
-                    {filtered.length === 0 && (
+                    {members.data.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-16 text-center">
                             <Users className="size-10 text-muted-foreground/30 mb-3" />
                             <p className="text-sm font-medium text-muted-foreground">No members found</p>
-                            <p className="text-xs text-muted-foreground/70 mt-1">Try adjusting your search or filters</p>
+                            <p className="text-xs text-muted-foreground/70 mt-1">Add your first member or adjust filters</p>
                         </div>
                     )}
                 </div>
+
+                {/* Pagination */}
+                {members.last_page > 1 && (
+                    <div className="flex items-center justify-between px-6 py-3 border-t border-border shrink-0">
+                        <p className="text-xs text-muted-foreground">
+                            Showing {members.from}â€“{members.to} of {members.total}
+                        </p>
+                        <div className="flex items-center gap-1">
+                            <Button variant="outline" size="sm" className="h-7 gap-1"
+                                disabled={members.current_page === 1}
+                                onClick={() => router.get('/members', { ...filters, page: members.current_page - 1 }, { preserveState: true })}>
+                                <ChevronLeft className="size-3.5" />
+                            </Button>
+                            <span className="text-xs px-2">{members.current_page} / {members.last_page}</span>
+                            <Button variant="outline" size="sm" className="h-7 gap-1"
+                                disabled={members.current_page === members.last_page}
+                                onClick={() => router.get('/members', { ...filters, page: members.current_page + 1 }, { preserveState: true })}>
+                                <ChevronRight className="size-3.5" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <MemberProfile member={selectedMember} onClose={() => setSelectedMember(null)} attendancePeriod={attendancePeriod} />
             <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
+            <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} departments={departments} />
         </>
     );
 }
-
 Members.layout = {
     breadcrumbs: [
         { title: 'Dashboard', href: dashboard() },
