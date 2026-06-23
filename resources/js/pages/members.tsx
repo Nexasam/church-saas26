@@ -287,26 +287,25 @@ function AttendanceLog({ member }: { member: Member }) {
 // â”€â”€ Edit Profile Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function EditProfileModal({ member, open, onClose }: { member: Member; open: boolean; onClose: () => void }) {
-    const [form, setForm] = useState({
-        name:           member.name,
-        phone:          member.phone,
-        email:          member.email,
-        dob:            member.dob ?? '',
-        gender:         member.gender,
-        occupation:     member.occupation ?? '',
-        address:        member.address ?? '',
-        homeChurch:     member.homeChurch ?? '',
-        membershipType: member.membershipType,
-        status:         member.status,
+    const { data, setData, patch, processing, errors } = useForm({
+        first_name:      member.first_name,
+        last_name:       member.last_name,
+        phone:           member.phone ?? '',
+        email:           member.email ?? '',
+        dob:             member.dob ?? '',
+        gender:          member.gender ?? 'male',
+        occupation:      member.occupation ?? '',
+        address:         member.address ?? '',
+        home_church:     member.home_church ?? '',
+        membership_type: member.membership_type,
+        status:          member.status,
     });
 
-    function set(key: string, val: string) {
-        setForm(prev => ({ ...prev, [key]: val }));
-    }
-
-    function save() {
-        // When backend is wired: PATCH /members/{id}
-        onClose();
+    function save(e: React.FormEvent) {
+        e.preventDefault();
+        patch(`/members/${member.id}`, {
+            onSuccess: () => { toast.success(`${member.name} updated.`); onClose(); },
+        });
     }
 
     return (
@@ -315,26 +314,33 @@ function EditProfileModal({ member, open, onClose }: { member: Member; open: boo
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <User className="size-4 text-primary" />
-                        Edit Profile â€” {member.name}
+                        Edit Profile - {member.name}
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="flex flex-col gap-4 py-2">
+                <form onSubmit={save} className="flex flex-col gap-4 py-2">
                     {/* Name */}
-                    <div>
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Full Name *</label>
-                        <Input value={form.name} onChange={e => set('name', e.target.value)} className="h-9" />
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">First Name *</label>
+                            <Input value={data.first_name} onChange={e => setData('first_name', e.target.value)} className="h-9" required />
+                            <InputError message={errors.first_name} />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Last Name</label>
+                            <Input value={data.last_name} onChange={e => setData('last_name', e.target.value)} className="h-9" />
+                        </div>
                     </div>
 
                     {/* Phone + Email */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Phone</label>
-                            <Input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+234 800 000 0000" className="h-9" />
+                            <Input value={data.phone} onChange={e => setData('phone', e.target.value)} placeholder="+234 800 000 0000" className="h-9" />
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Email</label>
-                            <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="h-9" />
+                            <Input type="email" value={data.email} onChange={e => setData('email', e.target.value)} className="h-9" />
                         </div>
                     </div>
 
@@ -342,13 +348,13 @@ function EditProfileModal({ member, open, onClose }: { member: Member; open: boo
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Date of Birth</label>
-                            <Input type="date" value={form.dob} onChange={e => set('dob', e.target.value)} className="h-9" />
+                            <Input type="date" value={data.dob} onChange={e => setData('dob', e.target.value)} className="h-9" />
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Gender</label>
                             <select
-                                value={form.gender}
-                                onChange={e => set('gender', e.target.value)}
+                                value={data.gender ?? 'male'}
+                                onChange={e => setData('gender', e.target.value as 'male' | 'female')}
                                 className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                             >
                                 <option value="male">Male</option>
@@ -360,19 +366,19 @@ function EditProfileModal({ member, open, onClose }: { member: Member; open: boo
                     {/* Occupation */}
                     <div>
                         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Occupation</label>
-                        <Input value={form.occupation} onChange={e => set('occupation', e.target.value)} placeholder="e.g. Software Engineer" className="h-9" />
+                        <Input value={data.occupation} onChange={e => setData('occupation', e.target.value)} placeholder="e.g. Software Engineer" className="h-9" />
                     </div>
 
                     {/* Address */}
                     <div>
                         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Address</label>
-                        <Input value={form.address} onChange={e => set('address', e.target.value)} placeholder="e.g. 14 Church Street, Lagos" className="h-9" />
+                        <Input value={data.address} onChange={e => setData('address', e.target.value)} placeholder="e.g. 14 Church Street, Lagos" className="h-9" />
                     </div>
 
                     {/* Home Church */}
                     <div>
                         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Home Church / Zone</label>
-                        <Input value={form.homeChurch} onChange={e => set('homeChurch', e.target.value)} placeholder="e.g. Zone 5 HC" className="h-9" />
+                        <Input value={data.home_church} onChange={e => setData('home_church', e.target.value)} placeholder="e.g. Zone 5 HC" className="h-9" />
                     </div>
 
                     {/* Membership Type + Status */}
@@ -380,34 +386,36 @@ function EditProfileModal({ member, open, onClose }: { member: Member; open: boo
                         <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Membership Type</label>
                             <select
-                                value={form.membershipType}
-                                onChange={e => set('membershipType', e.target.value)}
+                                value={data.membership_type}
+                                onChange={e => setData('membership_type', e.target.value as Member['membership_type'])}
                                 className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                             >
                                 <option value="full">Full Member</option>
-                                <option value="associate">Associate</option>
                                 <option value="visitor">Visitor</option>
+                                <option value="youth">Youth</option>
+                                <option value="child">Child</option>
                             </select>
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Status</label>
                             <select
-                                value={form.status}
-                                onChange={e => set('status', e.target.value)}
+                                value={data.status}
+                                onChange={e => setData('status', e.target.value as Member['status'])}
                                 className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                             >
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
-                                <option value="new">New</option>
                             </select>
                         </div>
                     </div>
 
                     <div className="flex gap-3 pt-1">
-                        <Button className="flex-1" onClick={save}>Save Changes</Button>
-                        <Button variant="outline" onClick={onClose}>Cancel</Button>
+                        <Button type="submit" className="flex-1" disabled={processing}>
+                            {processing ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
                     </div>
-                </div>
+                </form>
             </DialogContent>
         </Dialog>
     );
@@ -422,7 +430,7 @@ function MemberProfile({ member, onClose, attendancePeriod }: {
 }) {
     if (!member) return null;
     const sc = statusConfig[member.status];
-    const mc = membershipConfig[member.membershipType];
+    const mc = membershipConfig[member.membership_type as keyof typeof membershipConfig] || membershipConfig.full;
     const [editOpen, setEditOpen] = useState(false);
 
     const getAttendanceRate = (base: number) => {
@@ -679,7 +687,7 @@ function ImportModal({ open, onClose }: { open: boolean; onClose: () => void }) 
                             </Button>
                             <Button
                                 className="flex-1 gap-2"
-                                onClick={() => setStep('done')}
+                                onClick={() => { const fd = new FormData(); if (file) { fd.append('file', file); } router.post('/members/import', fd, { onSuccess: () => setStep('done'), forceFormData: true }); }}
                             >
                                 <FileUp className="size-4" />
                                 Import {preview.length - 1} Members
@@ -707,7 +715,7 @@ function ImportModal({ open, onClose }: { open: boolean; onClose: () => void }) 
 
 // â”€â”€ Export helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-function exportMembersCSV(members: typeof mockMembers) {
+function exportMembersCSV(members: any[]) {
     const header = ['Name', 'Email', 'Phone', 'Gender', 'Status', 'Membership Type', 'Departments', 'Home Church', 'Joined At', 'Attendance Rate'];
     const rows = members.map(m => [
         m.name, m.email, m.phone, m.gender, m.status, m.membershipType,
@@ -908,30 +916,6 @@ export default function Members() {
         <>
             <Head title="Members" />
             <div className="flex flex-col h-full overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                    <div>
-                        <h1 className="text-lg font-semibold tracking-tight">Members</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {stats.total} total Â· {stats.active} active Â· {stats.inactive} inactive
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setImportOpen(true)}>
-                            <FileUp className="size-3.5" />
-                            Import
-                        </Button>
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={handleExport}>
-                            <Download className="size-3.5" />
-                            Export
-                        </Button>
-                        <Button size="sm" className="h-8 gap-1.5" onClick={() => setAddOpen(true)}>
-                            <Plus className="size-3.5" />
-                            Add Member
-                        </Button>
-                    </div>
-                </div>
-
                 {/* Filters */}
                 <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
                     <div className="relative flex-1 max-w-sm">
@@ -1086,3 +1070,4 @@ Members.layout = {
         { title: 'Members', href: '/members' },
     ],
 };
+

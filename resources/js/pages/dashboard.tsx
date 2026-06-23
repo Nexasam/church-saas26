@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+﻿import { Head, Link, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     ArrowRight,
@@ -16,17 +16,7 @@ import {
 import { KpiCard } from '@/components/kpi-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    mockActivityFeed,
-    mockDashboardMetrics,
-    mockEvangelismFunnelData,
-    mockFinanceSummary,
-    mockFollowUpCards,
-    mockNotifications,
-    formatCurrency,
-    formatNumber,
-    type ActivityFeedItem,
-} from '@/lib/mock-data';
+import { formatCurrency, formatNumber, type ActivityFeedItem } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -60,10 +50,9 @@ const verseOfTheDay = {
 };
 
 export default function Dashboard() {
-    const m = mockDashboardMetrics;
-    const urgentFollowUps = mockFollowUpCards.filter((f) => f.priority === 'urgent' || f.priority === 'high').slice(0, 5);
-    const unreadNotifs = mockNotifications.filter((n) => !n.read).slice(0, 3);
-
+    type DashProps = { stats: any; funnelData: any[]; financeMonthly: any[]; urgentFollowUps: any[]; openCareCases: any[]; openCareCasesCount: number; urgentCareCasesCount: number; activityFeed: any[]; churchName: string };
+    const { stats, funnelData, financeMonthly, urgentFollowUps, openCareCases, openCareCasesCount, urgentCareCasesCount, activityFeed, churchName } = usePage<DashProps>().props;
+    const unreadAlerts = openCareCases.filter((c: any) => c.priority === "urgent" || c.priority === "high").slice(0, 3);
     return (
         <>
             <Head title="Dashboard" />
@@ -83,7 +72,7 @@ export default function Dashboard() {
                                     {getGreeting()}, Pastor Admin
                                 </span>
                             </div>
-                            <h1 className="text-2xl font-bold tracking-tight">Grace Assembly</h1>
+                            <h1 className="text-2xl font-bold tracking-tight">{churchName}</h1>
                             <p className="text-sm text-white/70">
                                 {new Date().toLocaleDateString('en-NG', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · Main Campus
                             </p>
@@ -127,10 +116,10 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6 stagger-children">
                     <KpiCard
                         title="Members Reached"
-                        value={formatNumber(m.soulsWon.value)}
-                        trend={m.soulsWon.trend}
+                        value={formatNumber(stats.soulsWon?.value ?? 0)}
+                        trend={stats.soulsWon?.trend ?? 0}
                         trendLabel="vs last month"
-                        sparkline={m.soulsWon.sparkline}
+                        sparkline={[]}
                         sparklineColor="oklch(0.52 0.18 162)"
                         icon={Star}
                         badge="This Month"
@@ -138,46 +127,46 @@ export default function Dashboard() {
                     />
                     <KpiCard
                         title="Active Members"
-                        value={formatNumber(m.activeMembers.value)}
-                        trend={m.activeMembers.trend}
+                        value={formatNumber(stats.activeMembers?.value ?? 0)}
+                        trend={stats.activeMembers?.trend ?? 0}
                         trendLabel="vs last month"
-                        sparkline={m.activeMembers.sparkline}
+                        sparkline={[]}
                         sparklineColor="oklch(0.55 0.20 265)"
                         icon={Users}
                     />
                     <KpiCard
                         title="Pending Follow-Ups"
-                        value={formatNumber(m.pendingFollowUps.value)}
-                        trend={m.pendingFollowUps.trend}
+                        value={formatNumber(stats.pendingFollowUps?.value ?? 0)}
+                        trend={stats.pendingFollowUps?.trend ?? 0}
                         trendLabel="vs last week"
                         icon={UserSearch}
-                        badge={`${m.pendingFollowUps.urgent} Urgent`}
+                        badge={`${stats.pendingFollowUps?.urgent ?? 0} Urgent`}
                         badgeColor="red"
                         subtitle="Requires attention"
                     />
                     <KpiCard
                         title="Monthly Income"
-                        value={formatCurrency(m.monthlyIncome.value)}
-                        trend={m.monthlyIncome.trend}
+                        value={formatCurrency(stats.monthlyIncome?.value ?? 0)}
+                        trend={stats.monthlyIncome?.trend ?? 0}
                         trendLabel="vs last month"
-                        sparkline={m.monthlyIncome.sparkline}
+                        sparkline={[]}
                         sparklineColor="oklch(0.65 0.16 84)"
                         icon={CreditCard}
                     />
                     <KpiCard
                         title="Conversion Rate"
-                        value={`${m.conversionRate.value}%`}
-                        trend={m.conversionRate.trend}
+                        value={`${stats.conversionRate?.value ?? 0}%`}
+                        trend={stats.conversionRate?.trend ?? 0}
                         trendLabel="vs last month"
                         icon={TrendingUp}
                         subtitle="Members Reached → Established"
                     />
                     <KpiCard
                         title="Attendance"
-                        value={formatNumber(m.attendance.value)}
-                        trend={m.attendance.trend}
+                        value={formatNumber(stats.attendance?.value ?? 0)}
+                        trend={stats.attendance?.trend ?? 0}
                         trendLabel="vs last Sunday"
-                        sparkline={m.attendance.sparkline}
+                        sparkline={stats.attendance?.sparkline ?? []}
                         sparklineColor="oklch(0.60 0.15 230)"
                         icon={Users}
                         subtitle="Last Sunday service"
@@ -191,21 +180,21 @@ export default function Dashboard() {
                     <div className="lg:col-span-2 flex flex-col gap-6">
 
                         {/* Escalation Alerts */}
-                        {unreadNotifs.length > 0 && (
+                        {unreadAlerts.length > 0 && (
                             <div className="card-base p-4 border-l-4 border-l-red-500 bg-red-50/60 dark:bg-red-950/20">
                                 <div className="flex items-center gap-2 mb-3">
                                     <AlertTriangle className="size-4 text-red-500" />
                                     <span className="text-sm font-semibold text-red-700 dark:text-red-400">
-                                        {unreadNotifs.length} Alerts Requiring Attention
+                                        {unreadAlerts.length} Alerts Requiring Attention
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-2">
-                                    {unreadNotifs.map((n) => (
+                                    {unreadAlerts.map((n: any) => (
                                         <div key={n.id} className="flex items-start gap-2.5">
                                             <div className="size-1.5 rounded-full bg-red-500 mt-1.5 shrink-0" />
                                             <div className="min-w-0">
-                                                <span className="text-sm font-medium text-foreground">{n.title}: </span>
-                                                <span className="text-sm text-muted-foreground">{n.message}</span>
+                                                <span className="text-sm font-medium text-foreground">{n.name}: </span>
+                                                <span className="text-sm text-muted-foreground capitalize">{n.type?.replace('_', ' ')} — {n.priority} priority</span>
                                             </div>
                                         </div>
                                     ))}
@@ -233,8 +222,8 @@ export default function Dashboard() {
                                 </Button>
                             </div>
                             <div className="divide-y divide-border">
-                                {urgentFollowUps.map((fu) => {
-                                    const pc = priorityConfig[fu.priority];
+                                {urgentFollowUps.map((fu: any) => {
+                                    const pc = priorityConfig[fu.priority as keyof typeof priorityConfig] ?? priorityConfig.medium;
                                     return (
                                         <div key={fu.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-base cursor-pointer group">
                                             <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
@@ -249,12 +238,12 @@ export default function Dashboard() {
                                                     </span>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                                    {fu.nextAction} · Assigned: {fu.assignedTo}
+                                                    {fu.next_action} · Assigned: {fu.assigned_to}
                                                 </p>
                                             </div>
                                             <div className="text-right shrink-0">
-                                                <span className="text-xs text-muted-foreground">{fu.lastContact}</span>
-                                                <p className="text-xs text-muted-foreground mt-0.5">{fu.daysInStage}d in stage</p>
+                                                <span className="text-xs text-muted-foreground">{fu.last_contact}</span>
+                                                <p className="text-xs text-muted-foreground mt-0.5">{fu.days_in_stage}d in stage</p>
                                             </div>
                                         </div>
                                     );
@@ -275,8 +264,8 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <div className="divide-y divide-border">
-                                {mockActivityFeed.map((item) => {
-                                    const cfg = activityTypeConfig[item.type];
+                                {activityFeed.map((item: any) => {
+                                    const cfg = activityTypeConfig[item.type as ActivityFeedItem['type']] ?? activityTypeConfig.member_joined;
                                     return (
                                         <div key={item.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-muted/20 transition-base">
                                             <div className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold mt-0.5', cfg.bg, cfg.color)}>
@@ -313,10 +302,10 @@ export default function Dashboard() {
                                 </Button>
                             </div>
                             <div className="p-5 flex flex-col gap-3">
-                                {mockEvangelismFunnelData.map((stage, i) => (
+                                {funnelData.map((stage: any, i: number) => (
                                     <div key={stage.stage} className="flex flex-col gap-1.5">
                                         <div className="flex items-center justify-between text-xs">
-                                            <span className="text-muted-foreground font-medium">{stage.stage}</span>
+                                            <span className="text-muted-foreground font-medium">{stage.label ?? stage.stage}</span>
                                             <span className="font-semibold tabular-nums">{stage.count}</span>
                                         </div>
                                         <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -333,7 +322,7 @@ export default function Dashboard() {
                                 ))}
                                 <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-3">
                                     <span>Total tracked this month</span>
-                                    <span className="font-semibold text-foreground">{mockEvangelismFunnelData[0].count}</span>
+                                    <span className="font-semibold text-foreground">{funnelData[0]?.count ?? 0}</span>
                                 </div>
                             </div>
                         </div>
@@ -354,7 +343,7 @@ export default function Dashboard() {
                                     <div>
                                         <p className="text-xs text-muted-foreground">Total Income</p>
                                         <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums mt-0.5">
-                                            {formatCurrency(mockFinanceSummary.totalIncome)}
+                                            {formatCurrency(stats.monthlyIncome?.value ?? 0)}
                                         </p>
                                     </div>
                                     <div className="flex size-10 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
@@ -363,10 +352,10 @@ export default function Dashboard() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     {[
-                                        { label: 'Expenses', value: formatCurrency(mockFinanceSummary.totalExpenses), cls: 'text-red-500' },
-                                        { label: 'Net Balance', value: formatCurrency(mockFinanceSummary.netBalance), cls: 'text-primary' },
-                                        { label: 'Cash', value: formatCurrency(mockFinanceSummary.cashAmount), cls: 'text-foreground' },
-                                        { label: 'Bank', value: formatCurrency(mockFinanceSummary.bankAmount), cls: 'text-foreground' },
+                                        { label: 'Expenses', value: formatCurrency(stats.monthlyExpenses?.value ?? 0), cls: 'text-red-500' },
+                                        { label: 'Net Balance', value: formatCurrency(((stats.monthlyIncome?.value ?? 0) - (stats.monthlyExpenses?.value ?? 0))), cls: 'text-primary' },
+                                        { label: 'Cash', value: formatCurrency(0), cls: 'text-foreground' },
+                                        { label: 'Bank', value: formatCurrency(0), cls: 'text-foreground' },
                                     ].map((item) => (
                                         <div key={item.label} className="rounded-xl bg-muted/50 p-3">
                                             <p className="text-xs text-muted-foreground">{item.label}</p>
@@ -383,25 +372,23 @@ export default function Dashboard() {
                                 <div className="flex items-center gap-2">
                                     <HeartHandshake className="size-4 text-rose-500" />
                                     <h3 className="text-sm font-semibold">Open Care Cases</h3>
-                                    <Badge variant="secondary" className="h-5 px-1.5 text-xs">4</Badge>
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-xs">{openCareCasesCount}</Badge>
                                 </div>
                                 <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" asChild>
                                     <Link href="/care">View <ArrowRight className="size-3" /></Link>
                                 </Button>
                             </div>
                             <div className="p-4 flex flex-col gap-2">
-                                {[
-                                    { name: 'Bro. Eze Uchenna',   type: 'Hospital',     priority: 'urgent' as const },
-                                    { name: 'Sis. Chiamaka Obi',  type: 'Bereavement',  priority: 'high' as const },
-                                    { name: 'Sis. Ada Nwosu',     type: 'Prayer Need',  priority: 'high' as const },
-                                ].map((c) => {
-                                    const pc = priorityConfig[c.priority];
+                                {openCareCases.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground text-center py-4">No open care cases</p>
+                                ) : openCareCases.map((c: any) => {
+                                    const pc = priorityConfig[c.priority as keyof typeof priorityConfig] ?? priorityConfig.medium;
                                     return (
-                                        <div key={c.name} className="flex items-center gap-2.5 rounded-xl hover:bg-muted/40 px-3 py-2 transition-base cursor-pointer">
+                                        <div key={c.id} className="flex items-center gap-2.5 rounded-xl hover:bg-muted/40 px-3 py-2 transition-base cursor-pointer">
                                             <div className={cn('size-2 rounded-full shrink-0', pc.dot)} />
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-xs font-medium truncate">{c.name}</p>
-                                                <p className="text-xs text-muted-foreground">{c.type}</p>
+                                                <p className="text-xs text-muted-foreground capitalize">{c.type?.replace('_', ' ')}</p>
                                             </div>
                                             <span className={cn('text-xs rounded-full px-2 py-0.5 font-medium', pc.color)}>
                                                 {c.priority}
@@ -421,3 +408,5 @@ export default function Dashboard() {
 Dashboard.layout = {
     breadcrumbs: [{ title: 'Dashboard', href: dashboard() }],
 };
+
+

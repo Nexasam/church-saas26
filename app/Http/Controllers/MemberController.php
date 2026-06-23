@@ -240,40 +240,52 @@ class MemberController extends Controller
     }
 
     /**
-     * Bulk import members from CSV data.
+     * Bulk import members from an uploaded CSV file.
      */
     public function import(Request $request)
     {
         $request->validate([
-            'members'                   => ['required', 'array', 'min:1', 'max:500'],
-            'members.*.first_name'      => ['required', 'string', 'max:100'],
-            'members.*.last_name'       => ['required', 'string', 'max:100'],
-            'members.*.email'           => ['nullable', 'email'],
-            'members.*.phone'           => ['nullable', 'string', 'max:30'],
-            'members.*.gender'          => ['nullable', 'in:male,female'],
-            'members.*.membership_type' => ['nullable', 'in:full,visitor,youth,child'],
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
         ]);
 
         $churchId = auth()->user()->church_id;
         $created  = 0;
+        $handle   = fopen($request->file('file')->getPathname(), 'r');
 
-        DB::transaction(function () use ($request, $churchId, &$created) {
-            foreach ($request->members as $row) {
+        // Skip header row
+        $header = fgetcsv($handle);
+        // Normalize header keys
+        $keys = array_map(fn ($h) => strtolower(trim(str_replace([' ', '-'], '_', $h))), $header);
+
+        DB::transaction(function () use ($handle, $keys, $churchId, &$created) {
+            while (($row = fgetcsv($handle)) !== false) {
+                $data = array_combine($keys, array_pad($row, count($keys), ''));
+                $firstName = trim($data['first_name'] ?? $data['firstname'] ?? '');
+                $lastName  = trim($data['last_name']  ?? $data['lastname']  ?? $data['surname'] ?? '');
+
+                if (! $firstName) continue;
+
                 $member = Member::create([
-                    'first_name' => $row['first_name'],
-                    'last_name'  => $row['last_name'],
-                    'email'      => $row['email'] ?? null,
-                    'phone'      => $row['phone'] ?? null,
-                    'gender'     => $row['gender'] ?? null,
+                    'first_name' => $firstName,
+                    'last_name'  => $lastName,
+                    'email'      => $data['email']  ? trim($data['email'])  : null,
+                    'phone'      => $data['phone']  ? trim($data['phone'])  : null,
+                    'gender'     => in_array(strtolower($data['gender'] ?? ''), ['male','female']) ? strtolower($data['gender']) : null,
+                    'dob'        => $data['dob'] ? trim($data['dob']) : null,
                 ]);
+
                 $member->churches()->attach($churchId, [
-                    'membership_type' => $row['membership_type'] ?? 'full',
-                    'is_active'       => true,
-                    'joined_at'       => $row['joined_at'] ?? now(),
+                    'membership_type' => in_array($data['membership_type'] ?? '', ['full','visitor','youth','child'])
+                        ? $data['membership_type']
+                        : 'full',
+                    'is_active' => true,
+                    'joined_at' => $data['joined_at'] ?? now(),
                 ]);
                 $created++;
             }
         });
+
+        fclose($handle);
 
         return back()->with('success', "{$created} members imported successfully.");
     }

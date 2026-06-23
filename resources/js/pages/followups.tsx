@@ -1,4 +1,4 @@
-import {
+﻿import {
     DndContext,
     DragOverlay,
     PointerSensor,
@@ -14,7 +14,7 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     ArrowRight,
@@ -56,14 +56,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import {
-    mockFollowUpCards,
-    mockFollowUpTasks,
-    mockAutomationEvents,
-    type FollowUpCard,
-    type FollowUpStage,
-    type FollowUpTask,
-} from '@/lib/mock-data';
+import { type FollowUpCard, type FollowUpStage, type FollowUpTask } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -109,8 +102,23 @@ function CreateTaskModal({
     onClose: () => void;
     defaultPerson?: string;
 }) {
-    const [type, setType] = useState<FollowUpTask['type']>('call');
-    const [priority, setPriority] = useState<FollowUpTask['priority']>('medium');
+    const [type,       setType]       = useState<FollowUpTask['type']>('call');
+    const [priority,   setPriority]   = useState<FollowUpTask['priority']>('medium');
+    const [personRef,  setPersonRef]  = useState(defaultPerson);
+    const [assignedTo, setAssignedTo] = useState('');
+    const [dueDate,    setDueDate]    = useState('');
+    const [notes,      setNotes]      = useState('');
+
+    function submit() {
+        // We store as a standalone task with no follow_up_id initially
+        // The user can also create tasks from the profile drawer where follow_up_id is known
+        router.post('/followups/tasks', {
+            follow_up_id: null,
+            type, priority,
+            due_date:    dueDate || null,
+            notes:       notes || null,
+        }, { onSuccess: () => { setNotes(''); setDueDate(''); onClose(); } });
+    }
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -121,7 +129,7 @@ function CreateTaskModal({
                 <div className="flex flex-col gap-4 py-2">
                     <div>
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Person</Label>
-                        <Input placeholder="Person name" className="h-9" defaultValue={defaultPerson} />
+                        <Input placeholder="Person name" className="h-9" value={personRef} onChange={e => setPersonRef(e.target.value)} />
                     </div>
 
                     <div>
@@ -152,11 +160,11 @@ function CreateTaskModal({
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Assigned To</Label>
-                            <Input placeholder="e.g. Bro. Samuel" className="h-9" />
+                            <Input placeholder="e.g. Bro. Samuel" className="h-9" value={assignedTo} onChange={e => setAssignedTo(e.target.value)} />
                         </div>
                         <div>
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Due Date</Label>
-                            <Input type="date" className="h-9" />
+                            <Input type="date" className="h-9" value={dueDate} onChange={e => setDueDate(e.target.value)} />
                         </div>
                     </div>
 
@@ -187,11 +195,13 @@ function CreateTaskModal({
                             className="w-full rounded-lg border border-border bg-muted/50 text-sm p-3 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
                             rows={2}
                             placeholder="Add notes about this task..."
+                            value={notes}
+                            onChange={e => setNotes(e.target.value)}
                         />
                     </div>
 
                     <div className="flex gap-2 pt-1">
-                        <Button className="flex-1 gap-2" onClick={onClose}>
+                        <Button className="flex-1 gap-2" onClick={submit}>
                             <Plus className="size-4" />
                             Create Task
                         </Button>
@@ -251,7 +261,7 @@ function AutomationPanel() {
                     <h3 className="text-sm font-semibold">Recent Automation Events</h3>
                 </div>
                 <div className="divide-y divide-border">
-                    {mockAutomationEvents.map((event) => (
+                    {([] as any[]).map((event: any) => (
                         <div key={event.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-muted/20 transition-base">
                             <div className={cn(
                                 'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold mt-0.5',
@@ -285,11 +295,11 @@ function AutomationPanel() {
 
 // ── Tasks Panel ───────────────────────────────────────────────────────────────
 
-function TasksPanel({ onCreateTask }: { onCreateTask: () => void }) {
+function TasksPanel({ onCreateTask, tasks }: { onCreateTask: () => void; tasks: FollowUpTask[] }) {
     return (
         <div className="p-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{mockFollowUpTasks.length} tasks across all follow-ups</p>
+                <p className="text-sm text-muted-foreground">{tasks.length} tasks across all follow-ups</p>
                 <Button size="sm" className="h-8 gap-1.5" onClick={onCreateTask}>
                     <Plus className="size-3.5" />
                     New Task
@@ -306,7 +316,7 @@ function TasksPanel({ onCreateTask }: { onCreateTask: () => void }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {mockFollowUpTasks.map((task) => {
+                            {tasks.map((task) => {
                                 const tc = taskTypeConfig[task.type];
                                 const pc = priorityConfig[task.priority];
                                 const TaskIcon = tc.icon;
@@ -518,9 +528,9 @@ function ProfileDrawer({ card, onClose, onCreateTask }: { card: FollowUpCard | n
                                 <Plus className="size-3" /> Add Task
                             </button>
                         </div>
-                        {mockFollowUpTasks.filter((t) => t.followUpId === card.id).length > 0 ? (
+                        {[] .length > 0 ? (
                             <div className="flex flex-col gap-1.5">
-                                {mockFollowUpTasks.filter((t) => t.followUpId === card.id).map((task) => {
+                                { ([] as FollowUpTask[]).map((task) => {
                                     const tc = taskTypeConfig[task.type];
                                     const TaskIcon = tc.icon;
                                     return (
@@ -580,7 +590,41 @@ function ProfileDrawer({ card, onClose, onCreateTask }: { card: FollowUpCard | n
 type Tab = 'kanban' | 'tasks' | 'automation';
 
 export default function Followups() {
-    const [cards, setCards] = useState<FollowUpCard[]>(mockFollowUpCards);
+    type FUPageProps = { followUps: any[]; tasks: any[]; users: any[]; stageCounts: Record<string, number>; filters: any };
+    const { followUps: serverCards, tasks: serverTasks, users, stageCounts } = usePage<FUPageProps>().props;
+
+    // Map server shape to FollowUpCard shape expected by existing UI
+    const mappedCards: FollowUpCard[] = (serverCards ?? []).map((f: any) => ({
+        id:          String(f.id),
+        name:        f.name,
+        initials:    f.initials ?? f.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase(),
+        phone:       f.phone ?? '',
+        stage:       f.stage as FollowUpStage,
+        assignedTo:  f.assigned_to,
+        priority:    f.priority,
+        lastContact: f.last_contact,
+        nextAction:  f.next_action,
+        daysInStage: f.days_in_stage,
+        source:      f.source ?? '',
+        notes:       f.notes,
+        prayerRequest: f.prayer_request,
+        tags:        [],
+    }));
+
+    const mappedTasks: FollowUpTask[] = (serverTasks ?? []).map((t: any) => ({
+        id:          String(t.id),
+        followUpId:  String(t.follow_up_id),
+        personName:  t.person_name,
+        type:        t.type,
+        assignedTo:  t.assigned_to,
+        dueDate:     t.due_date ?? '',
+        priority:    t.priority,
+        status:      t.status,
+        notes:       t.notes,
+        createdAt:   '',
+    }));
+
+    const [cards, setCards] = useState<FollowUpCard[]>(mappedCards);
     const [selectedCard, setSelectedCard] = useState<FollowUpCard | null>(null);
     const [activeCard, setActiveCard] = useState<FollowUpCard | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -612,16 +656,17 @@ export default function Followups() {
         if (!over) return;
 
         const overId = over.id as string;
-        // Check if dropped over a stage column
         if (stages.includes(overId as FollowUpStage)) {
+            // Persist stage change
+            router.patch(`/followups/${active.id}`, { stage: overId }, { preserveScroll: true });
             setCards((prev) =>
                 prev.map((c) => c.id === active.id ? { ...c, stage: overId as FollowUpStage } : c),
             );
             return;
         }
-        // Check if dropped over another card — move to that card's stage
         const targetCard = cards.find((c) => c.id === overId);
         if (targetCard && targetCard.id !== active.id) {
+            router.patch(`/followups/${active.id}`, { stage: targetCard.stage }, { preserveScroll: true });
             setCards((prev) =>
                 prev.map((c) => c.id === active.id ? { ...c, stage: targetCard.stage } : c),
             );
@@ -633,46 +678,20 @@ export default function Followups() {
         setTaskModalOpen(true);
     }
 
-    const totalCards = cards.length;
+    const totalCards  = cards.length;
     const urgentCards = cards.filter((c) => c.priority === 'urgent').length;
+    const pendingTasks = mappedTasks.filter((t) => t.status !== 'done').length;
 
     const tabs: { id: Tab; label: string; count?: number }[] = [
-        { id: 'kanban', label: 'Kanban Board' },
-        { id: 'tasks', label: 'Tasks', count: mockFollowUpTasks.filter((t) => t.status !== 'done').length },
-        { id: 'automation', label: 'Automation', count: mockAutomationEvents.filter((e) => !e.resolved).length },
+        { id: 'kanban',     label: 'Kanban Board' },
+        { id: 'tasks',      label: 'Tasks',      count: pendingTasks },
+        { id: 'automation', label: 'Automation' },
     ];
 
     return (
         <>
             <Head title="Follow-Ups" />
             <div className="flex flex-col h-full overflow-hidden">
-
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                    <div>
-                        <h1 className="text-lg font-semibold tracking-tight">Follow-Ups</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {totalCards} people tracked
-                            {urgentCards > 0 && (
-                                <> · <span className="text-red-600 dark:text-red-400 font-medium">{urgentCards} urgent</span></>
-                            )}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="relative w-48 hidden sm:block">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-                            <Input className="h-8 pl-8 text-sm bg-muted/50 border-transparent" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                        </div>
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                            <Filter className="size-3.5" />
-                            Filter
-                        </Button>
-                        <Button size="sm" className="h-8 gap-1.5" onClick={() => openCreateTask()}>
-                            <Plus className="size-3.5" />
-                            Add Task
-                        </Button>
-                    </div>
-                </div>
 
                 {/* Tabs */}
                 <div className="flex items-center gap-0 border-b border-border px-6 shrink-0">
@@ -714,7 +733,7 @@ export default function Followups() {
                 )}
 
                 {/* Content */}
-                {tab === 'tasks' && <TasksPanel onCreateTask={() => openCreateTask()} />}
+                {tab === 'tasks' && <TasksPanel onCreateTask={() => openCreateTask()} tasks={mappedTasks} />}
                 {tab === 'automation' && <AutomationPanel />}
 
                 {tab === 'kanban' && (
@@ -821,3 +840,5 @@ Followups.layout = {
         { title: 'Follow-Ups', href: '/followups' },
     ],
 };
+
+

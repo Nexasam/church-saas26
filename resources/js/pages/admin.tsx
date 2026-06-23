@@ -387,23 +387,6 @@ export default function Admin() {
             <Head title="Admin" />
             <div className="flex flex-col h-full overflow-hidden">
 
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                    <div>
-                        <h1 className="text-lg font-semibold tracking-tight">Administration</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {admins.length} admin users · {activeAdmins} active
-                            {pendingInvitations.length > 0 && (
-                                <span className="ml-2 text-amber-600 dark:text-amber-400">· {pendingInvitations.length} pending invite{pendingInvitations.length !== 1 ? 's' : ''}</span>
-                            )}
-                        </p>
-                    </div>
-                    <Button size="sm" className="h-8 gap-1.5" onClick={() => setInviteOpen(true)}>
-                        <UserPlus className="size-3.5" />
-                        Invite Admin
-                    </Button>
-                </div>
-
                 {/* Tabs */}
                 <div className="flex items-center gap-0 border-b border-border px-6 shrink-0">
                     {[

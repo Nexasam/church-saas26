@@ -244,18 +244,6 @@ export default function PlatformDashboard() {
             <Head title="Platform Admin — Church OS" />
             <div className="flex flex-col h-full">
 
-                {/* Header */}
-                <div className="flex items-center justify-between px-8 py-6 border-b border-border">
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight">Platform Overview</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">All churches on Church OS</p>
-                    </div>
-                    <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => router.reload()}>
-                        <RefreshCw className="size-3.5" />
-                        Refresh
-                    </Button>
-                </div>
-
                 {/* KPI Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-8 py-6 border-b border-border">
                     {[

@@ -195,21 +195,6 @@ export default function Attendance() {
             <Head title="Attendance" />
             <div className="flex flex-col h-full overflow-hidden">
 
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                    <div>
-                        <h1 className="text-lg font-semibold tracking-tight">Attendance</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {MONTHS[filters.month - 1]} {filters.year} · {serviceName}
-                        </p>
-                    </div>
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5"
-                        onClick={() => window.location.href = `/attendance/export?${new URLSearchParams({ year: String(filters.year), month: String(filters.month), service_type: filters.service_type })}`}>
-                        <Download className="size-3.5" />
-                        Export
-                    </Button>
-                </div>
-
                 {/* Toolbar */}
                 <div className="flex flex-wrap items-center gap-2 px-6 py-3 border-b border-border shrink-0">
                     {/* Month nav */}

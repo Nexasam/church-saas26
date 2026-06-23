@@ -28,17 +28,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { mockNotifications, mockMembers } from '@/lib/mock-data';
+import { mockMembers } from '@/lib/mock-data';
 import { useInitials } from '@/hooks/use-initials';
 import { UserMenuContent } from '@/components/user-menu-content';
+import { NotificationBadge } from '@/components/notification-badge';
+import { NotificationDropdown } from '@/components/notification-dropdown';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { User } from '@/types';
@@ -58,8 +53,6 @@ export function AppTopBar() {
     const [notifOpen, setNotifOpen] = useState(false);
     const getInitials = useInitials();
 
-    const unreadCount = mockNotifications.filter((n) => !n.read).length;
-
     const filteredMembers = searchQuery.length > 1
         ? mockMembers.filter((m) =>
             m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -67,14 +60,6 @@ export function AppTopBar() {
             m.phone?.includes(searchQuery),
           ).slice(0, 5)
         : [];
-
-    const notifTypeColor: Record<string, string> = {
-        follow_up: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
-        finance: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
-        system: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-        care: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400',
-        escalation: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
-    };
 
     return (
         <div className="flex items-center gap-3 w-full">
@@ -180,69 +165,12 @@ export function AppTopBar() {
                 <Separator orientation="vertical" className="h-5 mx-1" />
 
                 {/* Notifications */}
-                <Sheet open={notifOpen} onOpenChange={setNotifOpen}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <SheetTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 relative">
-                                    <Bell className="size-4" />
-                                    {unreadCount > 0 && (
-                                        <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
-                                            {unreadCount}
-                                        </span>
-                                    )}
-                                </Button>
-                            </SheetTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent>Notifications</TooltipContent>
-                    </Tooltip>
-                    <SheetContent side="right" className="w-96 p-0 flex flex-col">
-                        <SheetHeader className="px-4 py-3.5 border-b border-border">
-                            <div className="flex items-center justify-between">
-                                <SheetTitle className="text-base font-semibold">Notifications</SheetTitle>
-                                {unreadCount > 0 && (
-                                    <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5 text-muted-foreground">
-                                        <CheckCheck className="size-3.5" />
-                                        Mark all read
-                                    </Button>
-                                )}
-                            </div>
-                        </SheetHeader>
-
-                        {/* Notification List */}
-                        <div className="flex-1 overflow-y-auto scrollbar-thin divide-y divide-border">
-                            {mockNotifications.map((notif) => (
-                                <div
-                                    key={notif.id}
-                                    className={cn(
-                                        'flex gap-3 px-4 py-3.5 hover:bg-muted/40 transition-base cursor-pointer',
-                                        !notif.read && 'bg-primary/[0.03]',
-                                    )}
-                                >
-                                    <div className={cn('mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold capitalize', notifTypeColor[notif.type])}>
-                                        {notif.type.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between gap-2">
-                                            <p className={cn('text-sm font-medium leading-snug', !notif.read && 'text-foreground')}>{notif.title}</p>
-                                            {!notif.read && <div className="size-2 shrink-0 rounded-full bg-primary mt-1.5" />}
-                                        </div>
-                                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{notif.message}</p>
-                                        <p className="text-xs text-muted-foreground/70 mt-1.5">
-                                            {new Date(notif.createdAt).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="border-t border-border p-3">
-                            <Button variant="ghost" className="w-full text-sm text-muted-foreground h-8">
-                                View all notifications
-                            </Button>
-                        </div>
-                    </SheetContent>
-                </Sheet>
+                <div className="relative">
+                    <div onClick={() => setNotifOpen(!notifOpen)}>
+                        <NotificationBadge />
+                    </div>
+                    {notifOpen && <NotificationDropdown onClose={() => setNotifOpen(false)} />}
+                </div>
 
                 {/* Profile */}
                 <DropdownMenu>

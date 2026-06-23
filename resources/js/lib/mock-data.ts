@@ -160,17 +160,18 @@ export type ServiceOffering = {
 };
 
 export type Department = {
-    id: string;
+    id: number;
     name: string;
     description: string;
     icon: string;
     color: string;
     leader: string;
+    leader_id: number | null;
     leaderAvatar?: string;
-    memberCount: number;
-    activeCount: number;
-    createdAt: string;
-    lastActivity: string;
+    member_count: number;
+    active_count: number;
+    created_at: string;
+    last_activity: string;
 };
 
 export type CareCase = {

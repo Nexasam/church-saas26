@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head, router, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     BookOpen,
@@ -27,7 +27,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { mockCareCases, type CareCase } from '@/lib/mock-data';
+import { type CareCase } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -71,7 +71,7 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
                         </div>
                         <div>
                             <SheetTitle className="text-base leading-snug">{careCase.title}</SheetTitle>
-                            <p className="text-sm text-muted-foreground mt-0.5">{careCase.memberName}</p>
+                            <p className="text-sm text-muted-foreground mt-0.5">{careCase.member_name}</p>
                         </div>
                     </div>
                 </SheetHeader>
@@ -94,14 +94,14 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
                     </div>
 
                     {/* Assigned */}
-                    {careCase.assignedTo && (
+                    {careCase.assigned_to && (
                         <div className="px-5 py-4 border-b border-border">
                             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Assigned To</h4>
                             <div className="flex items-center gap-2.5 rounded-lg bg-muted/50 p-2.5">
                                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                                    {careCase.assignedTo.split(' ').map((w) => w[0]).join('').slice(0, 2)}
+                                    {careCase.assigned_to.split(' ').map((w) => w[0]).join('').slice(0, 2)}
                                 </div>
-                                <span className="text-sm font-medium">{careCase.assignedTo}</span>
+                                <span className="text-sm font-medium">{careCase.assigned_to}</span>
                             </div>
                         </div>
                     )}
@@ -129,17 +129,13 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
                             rows={3}
                             placeholder="Add a progress note..."
                         />
-                        <Button className="w-full mt-2" size="sm">Save Note</Button>
+                        <Button className="w-full mt-2" size="sm" onClick={() => { const ta = document.querySelector(`textarea`) as HTMLTextAreaElement; if (!ta?.value) return; router.post(`/care/${careCase.id}/notes`, { note: ta.value }, { onSuccess: () => { ta.value = ""; } }); }}>Save Note</Button>
                     </div>
                 </div>
 
                 {/* Actions */}
                 <div className="border-t border-border p-4 flex gap-2">
-                    <Button
-                        className="flex-1 gap-1.5"
-                        size="sm"
-                        variant={careCase.status === 'resolved' ? 'outline' : 'default'}
-                    >
+                    <Button className="flex-1 gap-1.5" size="sm" variant={careCase.status === "resolved" ? "outline" : "default"} onClick={() => router.patch(`/care/${careCase.id}`, { status: careCase.status === "resolved" ? "open" : "resolved" })}>
                         <CheckCircle2 className="size-3.5" />
                         {careCase.status === 'resolved' ? 'Reopen' : 'Mark Resolved'}
                     </Button>
@@ -153,41 +149,27 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
 }
 
 export default function Care() {
+    type CarePageProps = { cases: CareCase[]; stats: { open: number; in_progress: number; urgent: number }; members: any[]; admins: any[]; filters: any };
+    const { cases, stats } = usePage<CarePageProps>().props;
+
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | CareCase['status']>('all');
     const [selectedCase, setSelectedCase] = useState<CareCase | null>(null);
 
-    const filtered = mockCareCases.filter((c) => {
-        const matchSearch = c.memberName.toLowerCase().includes(search.toLowerCase()) ||
+    const filtered = cases.filter((c) => {
+        const matchSearch = c.member_name.toLowerCase().includes(search.toLowerCase()) ||
             c.title.toLowerCase().includes(search.toLowerCase());
         const matchStatus = statusFilter === 'all' || c.status === statusFilter;
         return matchSearch && matchStatus;
     });
 
-    const openCount = mockCareCases.filter((c) => c.status === 'open').length;
-    const urgentCount = mockCareCases.filter((c) => c.priority === 'urgent').length;
+    const openCount   = stats?.open ?? 0;
+    const urgentCount = stats?.urgent ?? 0;
 
     return (
         <>
             <Head title="Care Cases" />
             <div className="flex flex-col h-full overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                    <div>
-                        <h1 className="text-lg font-semibold tracking-tight">Care Cases</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {openCount} open{urgentCount > 0 && ` · `}
-                            {urgentCount > 0 && (
-                                <span className="text-red-600 dark:text-red-400 font-medium">{urgentCount} urgent</span>
-                            )}
-                        </p>
-                    </div>
-                    <Button size="sm" className="h-8 gap-1.5">
-                        <Plus className="size-3.5" />
-                        New Case
-                    </Button>
-                </div>
-
                 {/* Filters */}
                 <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
                     <div className="relative flex-1 max-w-sm">
@@ -243,7 +225,7 @@ export default function Care() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-semibold leading-snug line-clamp-1">{careCase.title}</p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">{careCase.memberName}</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">{careCase.member_name}</p>
                                         </div>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -278,12 +260,12 @@ export default function Care() {
                                     </div>
 
                                     {/* Assigned */}
-                                    {careCase.assignedTo && (
+                                    {careCase.assigned_to && (
                                         <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-border">
                                             <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
-                                                {careCase.assignedTo.split(' ').map((w) => w[0]).join('').slice(0, 2)}
+                                                {careCase.assigned_to.split(' ').map((w) => w[0]).join('').slice(0, 2)}
                                             </div>
-                                            <span className="text-xs text-muted-foreground truncate">{careCase.assignedTo}</span>
+                                            <span className="text-xs text-muted-foreground truncate">{careCase.assigned_to}</span>
                                             <span className="ml-auto text-xs text-muted-foreground/60">{careCase.createdAt}</span>
                                         </div>
                                     )}
@@ -312,3 +294,5 @@ Care.layout = {
         { title: 'Care Cases', href: '/care' },
     ],
 };
+
+

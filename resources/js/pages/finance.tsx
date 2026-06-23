@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+﻿import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     ArrowDownRight,
@@ -15,19 +15,13 @@ import {
     XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    mockFinanceSummary,
-    mockTransactions,
-    mockServiceOfferings,
-    formatCurrency,
-    type FinanceTransaction,
-    type ServiceOffering,
-} from '@/lib/mock-data';
+import { formatCurrency, type FinanceTransaction, type ServiceOffering } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -67,8 +61,8 @@ const methodConfig = {
     cheque: { label: 'Cheque', color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400' },
 };
 
-function OverviewTab() {
-    const fs = mockFinanceSummary;
+function OverviewTab({ summary }: { summary: any }) {
+    const fs = summary ?? { totalIncome: 0, totalExpenses: 0, netBalance: 0, cashAmount: 0, bankAmount: 0, lastUpdated: '', monthlyTrend: [] };
     const maxBar = Math.max(...fs.monthlyTrend.map((m) => Math.max(m.income, m.expenses)));
 
     return (
@@ -165,9 +159,9 @@ function TransactionsTab() {
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
 
-    const filtered = mockTransactions.filter((t) => {
-        const matchSearch = t.description.toLowerCase().includes(search.toLowerCase()) ||
-            t.category.toLowerCase().includes(search.toLowerCase());
+    const { transactions: allTransactions } = usePage<any>().props;
+    const filtered = (allTransactions ?? []).filter((t: any) => {
+        const matchSearch = t.description?.toLowerCase().includes(search.toLowerCase()) || t.category?.toLowerCase().includes(search.toLowerCase());
         const matchType = typeFilter === 'all' || t.type === typeFilter;
         return matchSearch && matchType;
     });
@@ -254,7 +248,7 @@ function TransactionsTab() {
     );
 }
 
-// ─── Offering Templates ───────────────────────────────────────────────────────
+// ─── Offering Templates  ───────────────────────────────────────────────────────
 
 type OfferingSection = {
     id: string;
@@ -307,6 +301,7 @@ const PAYMENT_METHODS = ['Cash', 'Transfer', 'POS', 'Cheque'];
 type SectionEntry = { cash: string; transfer: string; pos: string; cheque: string };
 
 function ServiceEntryTab() {
+    const { serviceOfferings } = usePage<any>().props;
     const [templates, setTemplates]         = useState<OfferingTemplate[]>(DEFAULT_TEMPLATES);
     const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_TEMPLATES[0].id);
     const [showTemplateEditor, setShowTemplateEditor] = useState(false);
@@ -515,11 +510,21 @@ function ServiceEntryTab() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Button variant="outline" className="h-10 gap-2" disabled={grandTotal === 0}>
+                <Button variant="outline" className="h-10 gap-2" disabled={grandTotal === 0}
+                    onClick={() => router.post('/finance/service-entry', {
+                        service_name: serviceName, service_date: serviceDate,
+                        recorded_amount: grandTotal,
+                        sections: activeSections.map(s => ({ label: s.label, amounts: getEntry(s.id) })),
+                    }, { onSuccess: () => toast.success('Offering saved as draft.') })}>
                     <Download className="size-4" />
                     Save as Draft
                 </Button>
-                <Button className="h-10 font-semibold gap-2" disabled={grandTotal === 0}>
+                <Button className="h-10 font-semibold gap-2" disabled={grandTotal === 0}
+                    onClick={() => router.post('/finance/service-entry', {
+                        service_name: serviceName, service_date: serviceDate,
+                        recorded_amount: grandTotal,
+                        sections: activeSections.map(s => ({ label: s.label, amounts: getEntry(s.id) })),
+                    }, { onSuccess: () => { toast.success('Offering recorded!'); setEntries({}); } })}>
                     Record Offering
                 </Button>
             </div>
@@ -530,17 +535,17 @@ function ServiceEntryTab() {
                     <h3 className="text-sm font-semibold">Recent Service Offerings</h3>
                 </div>
                 <div className="divide-y divide-border">
-                    {mockServiceOfferings.map((so) => {
-                        const rc = reconciliationStatusConfig[so.reconciliationStatus];
+                    {(serviceOfferings ?? []).map((so: any) => {
+                        const rc = reconciliationStatusConfig[so.reconciliation_status] ?? reconciliationStatusConfig.pending;
                         const RcIcon = rc.icon;
                         return (
                             <div key={so.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-muted/20 transition-base">
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium">{so.serviceName}</p>
-                                    <p className="text-xs text-muted-foreground">{so.serviceDate} · {so.attendance} attendance</p>
+                                    <p className="text-sm font-medium">{so.service_name}</p>
+                                    <p className="text-xs text-muted-foreground">{so.service_date}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(so.recordedAmount)}</p>
+                                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(so.recorded_amount)}</p>
                                     <span className={cn('text-xs font-medium rounded-full px-2 py-0.5', rc.color)}>
                                         {rc.label}
                                     </span>
@@ -555,15 +560,24 @@ function ServiceEntryTab() {
 }
 
 function ReconciliationTab() {
+    const { serviceOfferings } = usePage<any>().props;
+    const recons: any[] = serviceOfferings ?? [];
+
+    const counts = {
+        matched:      recons.filter(s => s.reconciliation_status === 'matched').length,
+        pending:      recons.filter(s => s.reconciliation_status === 'pending').length,
+        variance:     recons.filter(s => s.reconciliation_status === 'variance').length,
+        investigating:recons.filter(s => s.reconciliation_status === 'investigating').length,
+    };
     return (
         <div className="p-6 flex flex-col gap-6">
             {/* Summary cards */}
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                 {[
-                    { label: 'Matched', count: 2, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200 dark:border-emerald-800' },
-                    { label: 'Pending', count: 1, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-800' },
-                    { label: 'Variance', count: 1, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/20', border: 'border-red-200 dark:border-red-800' },
-                    { label: 'Investigating', count: 0, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/20', border: 'border-purple-200 dark:border-purple-800' },
+                    { label: 'Matched',       count: counts.matched,       color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200 dark:border-emerald-800' },
+                    { label: 'Pending',       count: counts.pending,       color: 'text-amber-600',   bg: 'bg-amber-50 dark:bg-amber-950/20',     border: 'border-amber-200 dark:border-amber-800' },
+                    { label: 'Variance',      count: counts.variance,      color: 'text-red-600',     bg: 'bg-red-50 dark:bg-red-950/20',         border: 'border-red-200 dark:border-red-800' },
+                    { label: 'Investigating', count: counts.investigating, color: 'text-purple-600',  bg: 'bg-purple-50 dark:bg-purple-950/20',   border: 'border-purple-200 dark:border-purple-800' },
                 ].map((s) => (
                     <div key={s.label} className={cn('rounded-xl border p-4', s.bg, s.border)}>
                         <p className={cn('text-2xl font-bold', s.color)}>{s.count}</p>
@@ -587,19 +601,20 @@ function ReconciliationTab() {
                                 <th className="text-right text-xs font-medium text-muted-foreground px-5 py-2.5 uppercase tracking-wider">Banked</th>
                                 <th className="text-right text-xs font-medium text-muted-foreground px-5 py-2.5 uppercase tracking-wider">Variance</th>
                                 <th className="text-left text-xs font-medium text-muted-foreground px-5 py-2.5 uppercase tracking-wider">Status</th>
+                                <th className="px-5 py-2.5"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {mockServiceOfferings.map((so) => {
-                                const rc = reconciliationStatusConfig[so.reconciliationStatus];
+                            {recons.map((so) => {
+                                const rc = reconciliationStatusConfig[so.reconciliation_status as keyof typeof reconciliationStatusConfig] ?? reconciliationStatusConfig.pending;
                                 const RcIcon = rc.icon;
                                 return (
                                     <tr key={so.id} className="hover:bg-muted/20 transition-base">
-                                        <td className="px-5 py-3.5 font-medium">{so.serviceName}</td>
-                                        <td className="px-5 py-3.5 text-muted-foreground">{so.serviceDate}</td>
-                                        <td className="px-5 py-3.5 text-right tabular-nums font-medium">{formatCurrency(so.recordedAmount)}</td>
+                                        <td className="px-5 py-3.5 font-medium">{so.service_name}</td>
+                                        <td className="px-5 py-3.5 text-muted-foreground">{so.service_date}</td>
+                                        <td className="px-5 py-3.5 text-right tabular-nums font-medium">{formatCurrency(so.recorded_amount)}</td>
                                         <td className="px-5 py-3.5 text-right tabular-nums font-medium">
-                                            {so.bankedAmount ? formatCurrency(so.bankedAmount) : <span className="text-muted-foreground">—</span>}
+                                            {so.banked_amount ? formatCurrency(so.banked_amount) : <span className="text-muted-foreground">—</span>}
                                         </td>
                                         <td className={cn(
                                             'px-5 py-3.5 text-right tabular-nums font-semibold',
@@ -611,13 +626,27 @@ function ReconciliationTab() {
                                                 : '—'}
                                         </td>
                                         <td className="px-5 py-3.5">
-                                            <span className={cn(
-                                                'inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-2.5 py-1',
-                                                rc.color,
-                                            )}>
+                                            <span className={cn('inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-2.5 py-1', rc.color)}>
                                                 <RcIcon className={cn('size-3', rc.iconColor)} />
                                                 {rc.label}
                                             </span>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            {so.reconciliation_status === 'pending' && (
+                                                <button
+                                                    className="text-xs text-primary hover:underline"
+                                                    onClick={() => {
+                                                        const amt = prompt('Enter banked amount:');
+                                                        if (!amt) return;
+                                                        router.patch(`/finance/service-entry/${so.id}/reconcile`, {
+                                                            banked_amount: parseFloat(amt),
+                                                            banked_date: new Date().toISOString().split('T')[0],
+                                                        }, { onSuccess: () => toast.success('Reconciled.') });
+                                                    }}
+                                                >
+                                                    Reconcile
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 );
@@ -631,6 +660,7 @@ function ReconciliationTab() {
 }
 
 export default function Finance() {
+    const { summary } = usePage<any>().props;
     const [tab, setTab] = useState<Tab>('overview');
 
     const tabs: { id: Tab; label: string }[] = [
@@ -644,26 +674,6 @@ export default function Finance() {
         <>
             <Head title="Finance" />
             <div className="flex flex-col h-full overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                    <div>
-                        <h1 className="text-lg font-semibold tracking-tight">Finance</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            June 2026 · Last updated {new Date(mockFinanceSummary.lastUpdated).toLocaleString('en-NG', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                            <Download className="size-3.5" />
-                            Export
-                        </Button>
-                        <Button size="sm" className="h-8 gap-1.5">
-                            <Plus className="size-3.5" />
-                            Add Entry
-                        </Button>
-                    </div>
-                </div>
-
                 {/* Tabs */}
                 <div className="flex items-center gap-0 border-b border-border px-6 shrink-0">
                     {tabs.map((t) => (
@@ -687,7 +697,7 @@ export default function Finance() {
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin">
-                    {tab === 'overview' && <OverviewTab />}
+                    { tab === 'overview' && <OverviewTab summary={summary} /> }
                     {tab === 'transactions' && <TransactionsTab />}
                     {tab === 'service' && <ServiceEntryTab />}
                     {tab === 'reconciliation' && <ReconciliationTab />}
@@ -703,3 +713,5 @@ Finance.layout = {
         { title: 'Finance', href: '/finance' },
     ],
 };
+
+

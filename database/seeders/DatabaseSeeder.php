@@ -32,5 +32,8 @@ class DatabaseSeeder extends Seeder
         );
 
         $this->command->info('Seeded: admin@grace.org / password');
+
+        // Run dummy data seeder
+        $this->call(DummyDataSeeder::class);
     }
 }

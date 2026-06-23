@@ -111,16 +111,17 @@ class OnboardingController extends Controller
 
         $church->update([
             'payment_category'   => $validated['plan'] === 'free' ? 'free' : 'paid',
-            'subscription_expiry'=> now()->addDays(14), // 14-day trial for all plans
+            'subscription_expiry'=> now()->addDays(14),
             'onboarding_complete'=> true,
         ]);
+
+        $this->seedDefaultData($church->id);
 
         return redirect()->route('dashboard')->with('success', 'Welcome to Church OS! Your 14-day trial has started.');
     }
 
     /**
      * Skip to dashboard (marks onboarding complete without payment).
-     * Only allowed if departments have been saved.
      */
     public function skip(Request $request)
     {
@@ -138,6 +139,61 @@ class OnboardingController extends Controller
             'subscription_expiry' => now()->addDays(14),
         ]);
 
+        $this->seedDefaultData($church->id);
+
         return redirect()->route('dashboard');
     }
+
+    /**
+     * Seed default categories for a newly onboarded church.
+     */
+    private function seedDefaultData(int $churchId): void
+    {
+        $incomeCategories = [
+            ['name' => 'Tithes & Offerings', 'slug' => 'offering', 'type' => 'custom'],
+            ['name' => 'Special Offerings',  'slug' => 'special',  'type' => 'custom'],
+            ['name' => 'Building Fund',       'slug' => 'building', 'type' => 'custom'],
+            ['name' => 'Donations',           'slug' => 'donation', 'type' => 'custom'],
+            ['name' => 'Welfare Fund',        'slug' => 'welfare',  'type' => 'custom'],
+        ];
+
+        foreach ($incomeCategories as $cat) {
+            \App\Models\IncomeCategory::withoutGlobalScopes()->firstOrCreate(
+                ['church_id' => $churchId, 'slug' => $cat['slug']],
+                ['church_id' => $churchId, 'name' => $cat['name'], 'slug' => $cat['slug'], 'type' => $cat['type'], 'is_active' => true]
+            );
+        }
+
+        $expenseCategories = [
+            ['name' => 'Utilities',        'slug' => 'utilities',   'type' => 'custom'],
+            ['name' => 'Equipment',        'slug' => 'equipment',   'type' => 'custom'],
+            ['name' => 'Welfare',          'slug' => 'welfare_exp', 'type' => 'custom'],
+            ['name' => 'Salaries',         'slug' => 'salaries',    'type' => 'custom'],
+            ['name' => 'Maintenance',      'slug' => 'maintenance', 'type' => 'custom'],
+            ['name' => 'Miscellaneous',    'slug' => 'misc',        'type' => 'custom'],
+        ];
+
+        foreach ($expenseCategories as $cat) {
+            \App\Models\ExpenseCategory::withoutGlobalScopes()->firstOrCreate(
+                ['church_id' => $churchId, 'slug' => $cat['slug']],
+                ['church_id' => $churchId, 'name' => $cat['name'], 'slug' => $cat['slug'], 'type' => $cat['type'], 'is_active' => true]
+            );
+        }
+
+        $celebrationCategories = [
+            ['name' => 'Birthday',           'icon' => 'Cake',          'color' => 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',     'is_system' => true],
+            ['name' => 'Wedding Anniversary','icon' => 'Diamond',       'color' => 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',     'is_system' => true],
+            ['name' => 'New Baby',           'icon' => 'Baby',          'color' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',     'is_system' => true],
+            ['name' => 'Graduation',         'icon' => 'GraduationCap', 'color' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', 'is_system' => true],
+            ['name' => 'Job Promotion',      'icon' => 'PartyPopper',   'color' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', 'is_system' => true],
+        ];
+
+        foreach ($celebrationCategories as $cat) {
+            \App\Models\CelebrationCategory::withoutGlobalScopes()->firstOrCreate(
+                ['church_id' => $churchId, 'name' => $cat['name']],
+                ['church_id' => $churchId, ...$cat]
+            );
+        }
+    }
 }
+

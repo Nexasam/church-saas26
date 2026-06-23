@@ -13,6 +13,7 @@ import {
     TrendingUp,
     Users,
     UserSearch,
+    Crown,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -85,6 +86,11 @@ const mainNavItems: NavItem[] = [
         href: '/sms',
         icon: MessageSquare,
     },
+    {
+        title: 'Worker Portal',
+        href: '/worker/dashboard',
+        icon: Crown,
+    },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -107,6 +113,29 @@ const adminNavItems: NavItem[] = [
 
 export function AppSidebar() {
     const currentTenant = mockTenants[0];
+    const { auth } = usePage().props;
+    const user = auth?.user;
+
+    // Check if user is an admin (not a regular member role)
+    const isAdmin = user?.is_super_admin || (user?.role && user.role.slug !== 'member');
+
+    // Filter navigation based on user role
+    const filteredMainNavItems = isAdmin 
+        ? mainNavItems.filter(item => item.href !== '/worker/dashboard')
+        : [
+            {
+                title: 'My Departments',
+                href: '/worker/dashboard',
+                icon: LayoutGrid,
+            },
+            {
+                title: 'Notifications',
+                href: '/notifications',
+                icon: MessageSquare,
+            },
+          ];
+
+    const filteredAdminNavItems = isAdmin ? adminNavItems : [];
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -121,7 +150,7 @@ export function AppSidebar() {
                                     className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                                     tooltip={{ children: currentTenant.name }}
                                 >
-                                    <Link href={dashboard()} className="flex items-center gap-2 w-full">
+                                    <Link href={isAdmin ? dashboard() : '/worker/dashboard'} className="flex items-center gap-2 w-full">
                                         <AppLogo />
                                     </Link>
                                     <ChevronDown className="ml-auto size-4 opacity-50 shrink-0" />
@@ -168,9 +197,9 @@ export function AppSidebar() {
 
             {/* Main Navigation */}
             <SidebarContent>
-                <NavMain items={mainNavItems} label="Platform" />
-                <SidebarSeparator className="mx-2" />
-                <NavMain items={adminNavItems} label="Administration" />
+                <NavMain items={filteredMainNavItems} label={isAdmin ? "Platform" : "My Portal"} />
+                {isAdmin && <SidebarSeparator className="mx-2" />}
+                {isAdmin && <NavMain items={filteredAdminNavItems} label="Administration" />}
             </SidebarContent>
 
             {/* Footer — User Profile */}

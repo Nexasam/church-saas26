@@ -66,14 +66,6 @@ export default function Billing() {
         <>
             <Head title="Billing" />
             <div className="flex flex-col h-full overflow-y-auto scrollbar-thin">
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                    <div>
-                        <h1 className="text-lg font-semibold tracking-tight">Billing & Plans</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">Manage your subscription and payment history</p>
-                    </div>
-                </div>
-
                 <div className="p-6 flex flex-col gap-8 max-w-5xl">
 
                     {/* Current Plan */}

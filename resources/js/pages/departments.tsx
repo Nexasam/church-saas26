@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head, router, usePage } from '@inertiajs/react';
 import {
     Check,
     Globe,
@@ -18,7 +18,7 @@ import {
     X,
     Zap,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,7 +42,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { mockDepartments, mockMembers, type Department } from '@/lib/mock-data';
+import { type Department } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -83,25 +83,41 @@ const COLOR_OPTIONS = [
     { value: 'yellow', label: 'Yellow', swatch: 'bg-yellow-500' },
 ];
 
-function EditDepartmentModal({ dept, open, onClose }: {
+function EditDepartmentModal({ dept, open, onClose, allMembers }: {
     dept: Department | null;
     open: boolean;
     onClose: () => void;
+    allMembers: any[];
 }) {
     const [form, setForm] = useState({
         name:        dept?.name ?? '',
         description: dept?.description ?? '',
         leader:      dept?.leader ?? '',
+        leader_id:   dept?.leader_id ?? null,
         icon:        dept?.icon ?? 'Users',
         color:       dept?.color ?? 'blue',
     });
 
+    // Reset form when dept changes
+    useEffect(() => {
+        setForm({
+            name:        dept?.name ?? '',
+            description: dept?.description ?? '',
+            leader:      dept?.leader ?? '',
+            leader_id:   dept?.leader_id ?? null,
+            icon:        dept?.icon ?? 'Users',
+            color:       dept?.color ?? 'blue',
+        });
+    }, [dept]);
+
     const isNew = !dept;
 
     function save() {
-        // When backend is wired: POST/PATCH /departments
-        toast.success(isNew ? `Department "${form.name}" created.` : `"${form.name}" updated.`);
-        onClose();
+        if (isNew) {
+            router.post('/departments', form, { onSuccess: () => { toast.success(`Department "${form.name}" created.`); onClose(); } });
+        } else {
+            router.patch(`/departments/${dept!.id}`, form, { onSuccess: () => { toast.success(`"${form.name}" updated.`); onClose(); } });
+        }
     }
 
     const PreviewIcon = iconMap[form.icon] || Users;
@@ -141,7 +157,31 @@ function EditDepartmentModal({ dept, open, onClose }: {
 
                     <div>
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Department Leader</Label>
-                        <Input value={form.leader} onChange={e => setForm(p => ({ ...p, leader: e.target.value }))} placeholder="e.g. Bro. Emmanuel" className="h-9" />
+                        <div className="space-y-2">
+                            <select
+                                value={form.leader_id ?? ''}
+                                onChange={e => {
+                                    const member = allMembers.find((m: any) => m.id === Number(e.target.value));
+                                    setForm(p => ({ 
+                                        ...p, 
+                                        leader_id: Number(e.target.value) || null,
+                                        leader: member?.name || ''
+                                    }));
+                                }}
+                                className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                            >
+                                <option value="">Select a member as leader</option>
+                                {allMembers.map((m: any) => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                            </select>
+                            <Input
+                                value={form.leader}
+                                onChange={e => setForm(p => ({ ...p, leader: e.target.value }))}
+                                placeholder="Or enter custom leader name"
+                                className="h-9"
+                            />
+                        </div>
                     </div>
 
                     {/* Icon picker */}
@@ -201,38 +241,235 @@ function EditDepartmentModal({ dept, open, onClose }: {
     );
 }
 
-// ── Add Members Modal ─────────────────────────────────────────────────────────
+// ── Invite Worker Modal ─────────────────────────────────────────────────────
 
-function AddMembersModal({ dept, open, onClose }: {
+function InviteWorkerModal({ dept, open, onClose, allMembers }: {
     dept: Department | null;
     open: boolean;
     onClose: () => void;
+    allMembers: any[];
 }) {
+    const [form, setForm] = useState({ email: '', name: '', role: 'worker', user_id: null as number | null });
     const [search, setSearch] = useState('');
-    const [selected, setSelected] = useState<string[]>([]);
+    const [selectedMember, setSelectedMember] = useState<any | null>(null);
 
     if (!dept) return null;
 
-    const already = mockMembers.filter(m => m.departments.includes(dept.name)).map(m => m.id);
-    const available = mockMembers.filter(m =>
-        !m.departments.includes(dept.name) &&
-        (m.name.toLowerCase().includes(search.toLowerCase()) ||
-         m.phone.includes(search))
+    const availableMembers = allMembers.filter((m: any) =>
+        m.name.toLowerCase().includes(search.toLowerCase()) ||
+        (m.email ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (m.phone ?? '').includes(search)
     );
 
-    function toggle(id: string) {
+    function selectMember(member: any) {
+        setSelectedMember(member);
+        setForm({
+            email: member.email || '',
+            name: member.name,
+            role: form.role,
+            user_id: member.id,
+        });
+    }
+
+    function invite() {
+        if (!dept) return;
+        
+        const payload = {
+            department_id: dept.id,
+            email: form.email,
+            name: form.name,
+            role: form.role,
+        };
+
+        router.post('/workers/invite', payload, {
+            onSuccess: () => {
+                toast.success(`${form.name} has been added as a ${form.role} to ${dept.name}.`);
+                setForm({ email: '', name: '', role: 'worker', user_id: null });
+                setSelectedMember(null);
+                setSearch('');
+                onClose();
+            },
+            onError: () => {
+                toast.error('Failed to add member.');
+            }
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <UserPlus className="size-4 text-primary" />
+                        Add Member — {dept.name}
+                    </DialogTitle>
+                </DialogHeader>
+
+                <div className="flex flex-col gap-4 py-2">
+                    {/* Search existing members */}
+                    <div>
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                            Select from existing members
+                        </Label>
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                            <Input
+                                className="h-9 pl-8 text-sm"
+                                placeholder="Search members..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                        </div>
+                        {search && (
+                            <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-border">
+                                {availableMembers.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground text-center py-4">
+                                        No members found
+                                    </p>
+                                ) : (
+                                    availableMembers.map((m: any) => (
+                                        <button
+                                            key={m.id}
+                                            type="button"
+                                            onClick={() => selectMember(m)}
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted/50 transition-colors"
+                                        >
+                                            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                                {m.initials}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium">{m.name}</p>
+                                                <p className="text-xs text-muted-foreground">{m.email}</p>
+                                            </div>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border-t border-border pt-4">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                            Or enter new person details
+                        </Label>
+                        <div>
+                            <Label className="text-sm font-medium">Name *</Label>
+                            <Input
+                                value={form.name}
+                                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                                placeholder="Full name"
+                                className="mt-1.5 h-9"
+                            />
+                        </div>
+                        <div className="mt-3">
+                            <Label className="text-sm font-medium">Email (optional)</Label>
+                            <Input
+                                type="email"
+                                value={form.email}
+                                onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                                placeholder="email@example.com"
+                                className="mt-1.5 h-9"
+                            />
+                        </div>
+                        <div className="mt-3">
+                            <Label className="text-sm font-medium">Role</Label>
+                            <select
+                                value={form.role}
+                                onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
+                                className="mt-1.5 h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                            >
+                                <option value="member">Member</option>
+                                <option value="worker">Worker</option>
+                                <option value="leader">Leader</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-1">
+                        <Button className="flex-1" onClick={invite} disabled={!form.name}>
+                            Add to Department
+                        </Button>
+                        <Button variant="outline" onClick={onClose}>Cancel</Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+// ── Add Members Modal ─────────────────────────────────────────────────────────
+
+function AddMembersModal({ dept, open, onClose, allMembers, onMembersAdded }: {
+    dept: Department | null;
+    open: boolean;
+    onClose: () => void;
+    allMembers: any[];
+    onMembersAdded: () => void;
+}) {
+    const [search, setSearch] = useState('');
+    const [selected, setSelected] = useState<number[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [deptMembers, setDeptMembers] = useState<number[]>([]);
+
+    if (!dept) return null;
+
+    // Fetch department members when modal opens
+    useEffect(() => {
+        if (dept && open) {
+            setLoading(true);
+            fetch(`/departments/${dept.id}/members`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => {
+                    if (!r.ok) throw new Error('Failed to fetch members');
+                    return r.json();
+                })
+                .then((data: any[]) => setDeptMembers(data.map((m: any) => m.id)))
+                .catch((err) => {
+                    console.error('Error fetching department members:', err);
+                    setDeptMembers([]);
+                })
+                .finally(() => setLoading(false));
+        }
+    }, [dept, open]);
+
+    const available = allMembers.filter((m: any) =>
+        !deptMembers.includes(m.id) &&
+        (m.name.toLowerCase().includes(search.toLowerCase()) ||
+         (m.phone ?? '').includes(search))
+    );
+
+    function toggle(id: number) {
         setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
     }
 
     function save() {
-        toast.success(`${selected.length} member${selected.length !== 1 ? 's' : ''} added to ${dept.name}.`);
+        if (selected.length === 0) return;
+        
+        setLoading(true);
+        router.post(`/departments/${dept!.id}/members`, { member_ids: selected }, {
+            onSuccess: () => { 
+                toast.success(`${selected.length} member(s) added to ${dept!.name}.`); 
+                setSelected([]); 
+                setSearch(''); 
+                onClose(); 
+                onMembersAdded();
+            },
+            onError: () => {
+                toast.error('Failed to add members. Please try again.');
+            },
+            onFinish: () => {
+                setLoading(false);
+            }
+        });
+    }
+
+    function handleClose() {
         setSelected([]);
         setSearch('');
         onClose();
     }
 
     return (
-        <Dialog open={open} onOpenChange={() => { setSelected([]); setSearch(''); onClose(); }}>
+        <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
@@ -250,35 +487,35 @@ function AddMembersModal({ dept, open, onClose }: {
                             placeholder="Search members..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            autoFocus
+                            disabled={loading}
                         />
                     </div>
 
-                    {/* Already in department */}
-                    {already.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                            {already.length} member{already.length !== 1 ? 's' : ''} already in this department
-                        </p>
-                    )}
-
                     {/* Member list */}
                     <div className="flex flex-col gap-1 max-h-64 overflow-y-auto scrollbar-thin rounded-lg border border-border">
-                        {available.length === 0 ? (
+                        {loading ? (
+                            <p className="text-xs text-muted-foreground text-center py-6">
+                                Loading members...
+                            </p>
+                        ) : available.length === 0 ? (
                             <p className="text-xs text-muted-foreground text-center py-6">
                                 {search ? `No results for "${search}"` : 'All members are already in this department'}
                             </p>
-                        ) : available.map(m => {
-                            const isSelected = selected.includes(m.id);
-                            return (
-                                <button
-                                    key={m.id}
-                                    type="button"
-                                    onClick={() => toggle(m.id)}
-                                    className={cn(
-                                        'flex items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50',
-                                        isSelected && 'bg-primary/5',
-                                    )}
-                                >
+                        ) : (
+                            available.map(m => {
+                                const isSelected = selected.includes(m.id);
+                                return (
+                                    <button
+                                        key={m.id}
+                                        type="button"
+                                        onClick={() => toggle(m.id)}
+                                        disabled={loading}
+                                        className={cn(
+                                            'flex items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50',
+                                            isSelected && 'bg-primary/5',
+                                            loading && 'opacity-50 cursor-not-allowed'
+                                        )}
+                                    >
                                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
                                         {m.initials}
                                     </div>
@@ -293,8 +530,9 @@ function AddMembersModal({ dept, open, onClose }: {
                                         {isSelected && <Check className="size-3 text-primary-foreground" />}
                                     </div>
                                 </button>
-                            );
-                        })}
+                                );
+                            })
+                        )}
                     </div>
 
                     {/* Footer */}
@@ -303,8 +541,15 @@ function AddMembersModal({ dept, open, onClose }: {
                             {selected.length > 0 ? `${selected.length} selected` : 'Select members to add'}
                         </p>
                         <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="h-8" onClick={() => { setSelected([]); onClose(); }}>Cancel</Button>
-                            <Button size="sm" className="h-8 gap-1.5" disabled={selected.length === 0} onClick={save}>
+                            <Button variant="outline" size="sm" className="h-8" onClick={handleClose} disabled={loading}>
+                                Cancel
+                            </Button>
+                            <Button 
+                                size="sm" 
+                                className="h-8 gap-1.5" 
+                                disabled={selected.length === 0 || loading} 
+                                onClick={save}
+                            >
                                 <UserPlus className="size-3.5" />
                                 Add {selected.length > 0 ? selected.length : ''} Members
                             </Button>
@@ -318,22 +563,36 @@ function AddMembersModal({ dept, open, onClose }: {
 
 // ── Manage Department Sheet ───────────────────────────────────────────────────
 
-function ManageDepartmentSheet({ dept, open, onClose, onEdit, onAddMembers }: {
+function ManageDepartmentSheet({ dept, open, onClose, onEdit, onAddMembers, onInviteWorker, allMembers, onMembersAdded, refreshKey, isAdmin, isLeader }: {
     dept: Department | null;
     open: boolean;
     onClose: () => void;
     onEdit: () => void;
     onAddMembers: () => void;
+    onInviteWorker: () => void;
+    allMembers: any[];
+    onMembersAdded: () => void;
+    refreshKey: number;
+    isAdmin: boolean;
+    isLeader: boolean;
 }) {
     const [memberSearch, setMemberSearch] = useState('');
+    const [deptMembers, setDeptMembers]   = useState<any[]>([]);
+
+    // Fetch real members for this department when sheet opens
+    useEffect(() => {
+        if (dept && open) {
+            fetch(`/departments/${dept.id}/members`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.json()).then(setDeptMembers).catch(() => {});
+        }
+    }, [dept, open, refreshKey]);
 
     if (!dept) return null;
 
     const IconComponent = iconMap[dept.icon] || Users;
-    const c = colorMap[dept.color];
-    const deptMembers = mockMembers.filter(m => m.departments.includes(dept.name));
+    const c = colorMap[dept.color] ?? colorMap.blue;
     const filtered = memberSearch
-        ? deptMembers.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase()))
+        ? deptMembers.filter((m: any) => m.name.toLowerCase().includes(memberSearch.toLowerCase()))
         : deptMembers;
 
     return (
@@ -350,10 +609,12 @@ function ManageDepartmentSheet({ dept, open, onClose, onEdit, onAddMembers }: {
                                 <p className="text-xs text-muted-foreground">{dept.description}</p>
                             </div>
                         </div>
-                        <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs shrink-0" onClick={onEdit}>
-                            <Pencil className="size-3" />
-                            Edit
-                        </Button>
+                        {(isAdmin || isLeader) && (
+                            <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs shrink-0" onClick={onEdit}>
+                                <Pencil className="size-3" />
+                                Edit
+                            </Button>
+                        )}
                     </div>
                 </SheetHeader>
 
@@ -362,45 +623,41 @@ function ManageDepartmentSheet({ dept, open, onClose, onEdit, onAddMembers }: {
                     <div className="px-5 py-4 border-b border-border">
                         <div className="grid grid-cols-3 gap-3">
                             <div className="rounded-lg bg-muted/50 p-3 text-center">
-                                <p className="text-xl font-bold">{dept.memberCount}</p>
+                                <p className="text-xl font-bold">{dept.member_count}</p>
                                 <p className="text-xs text-muted-foreground">Total</p>
                             </div>
                             <div className="rounded-lg bg-muted/50 p-3 text-center">
-                                <p className="text-xl font-bold text-emerald-600">{dept.activeCount}</p>
+                                <p className="text-xl font-bold text-emerald-600">{dept.active_count}</p>
                                 <p className="text-xs text-muted-foreground">Active</p>
                             </div>
                             <div className="rounded-lg bg-muted/50 p-3 text-center">
-                                <p className="text-xl font-bold text-amber-600">{dept.memberCount - dept.activeCount}</p>
+                                <p className="text-xl font-bold text-amber-600">{dept.member_count - dept.active_count}</p>
                                 <p className="text-xs text-muted-foreground">Inactive</p>
                             </div>
                         </div>
                     </div>
 
                     {/* Leader */}
-                    <div className="px-5 py-4 border-b border-border">
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Department Leader</h4>
-                        <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-                            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">
-                                {dept.leader.split(' ').map(w => w[0]).join('').slice(0, 2)}
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium">{dept.leader}</p>
-                                <p className="text-xs text-muted-foreground">Department Leader</p>
+                    {dept.leader && (
+                        <div className="px-5 py-4 border-b border-border">
+                            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Department Leader</h4>
+                            <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+                                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">
+                                    {dept.leader.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium">{dept.leader}</p>
+                                    <p className="text-xs text-muted-foreground">Department Leader</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Members */}
                     <div className="px-5 py-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Members ({deptMembers.length})
-                            </h4>
-                            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5" onClick={onAddMembers}>
-                                <UserPlus className="size-3" />
-                                Add Members
-                            </Button>
-                        </div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                            Members ({deptMembers.length})
+                        </h4>
 
                         {/* Member search */}
                         {deptMembers.length > 0 && (
@@ -418,7 +675,7 @@ function ManageDepartmentSheet({ dept, open, onClose, onEdit, onAddMembers }: {
                         {filtered.length > 0 ? (
                             <div className="flex flex-col gap-1.5">
                                 {filtered.map(m => (
-                                    <div key={m.id} className="flex items-center gap-2.5 rounded-lg hover:bg-muted/40 p-2 transition-base group">
+                                    <div key={m.id} className="flex items-center gap-2.5 rounded-lg hover:bg-muted/40 p-2 transition-all group">
                                         <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
                                             {m.initials}
                                         </div>
@@ -426,14 +683,41 @@ function ManageDepartmentSheet({ dept, open, onClose, onEdit, onAddMembers }: {
                                             <p className="text-xs font-medium truncate">{m.name}</p>
                                             <p className="text-xs text-muted-foreground">{m.phone}</p>
                                         </div>
-                                        <span className="text-xs text-muted-foreground">{m.attendanceRate}%</span>
-                                        <button
-                                            className="opacity-0 group-hover:opacity-100 flex size-5 items-center justify-center rounded text-muted-foreground hover:text-destructive transition-all"
-                                            title="Remove from department"
-                                            onClick={() => toast.success(`${m.name} removed from ${dept.name}.`)}
-                                        >
-                                            <X className="size-3.5" />
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            {m.role && (
+                                                <span className={cn(
+                                                    'text-xs font-medium rounded-full px-2 py-0.5',
+                                                    m.role === 'leader' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                                    m.role === 'worker' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                                    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                                                )}>
+                                                    {m.role}
+                                                </span>
+                                            )}
+                                            <span className={cn(
+                                                'text-xs font-medium rounded-full px-2 py-0.5',
+                                                m.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                            )}>
+                                                {m.is_active ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </div>
+                                        {(isAdmin || isLeader) && (
+                                            <button
+                                                className="opacity-0 group-hover:opacity-100 flex size-5 items-center justify-center rounded text-muted-foreground hover:text-destructive transition-all"
+                                                title="Remove from department"
+                                                onClick={() => {
+                                                    router.delete(`/departments/${dept.id}/members/${m.id}`, {
+                                                        onSuccess: () => {
+                                                            toast.success(`${m.name} removed from ${dept.name}.`);
+                                                            setDeptMembers(prev => prev.filter(x => x.id !== m.id));
+                                                        },
+                                                        onError: () => toast.error('Failed to remove member.')
+                                                    });
+                                                }}
+                                            >
+                                                <X className="size-3.5" />
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -447,161 +731,74 @@ function ManageDepartmentSheet({ dept, open, onClose, onEdit, onAddMembers }: {
 
                 {/* Footer */}
                 <div className="border-t border-border p-4 flex gap-2">
-                    <Button className="flex-1 gap-1.5" size="sm" onClick={onAddMembers}>
-                        <UserPlus className="size-3.5" />
-                        Add Members
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={onEdit}>
-                        <Pencil className="size-3.5" />
-                        Edit
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-destructive hover:bg-destructive/10"
-                        onClick={() => { toast.success(`${dept.name} deleted.`); onClose(); }}
-                    >
-                        <Trash2 className="size-3.5" />
-                    </Button>
+                    {(isAdmin || isLeader) && (
+                        <Button className="flex-1 gap-1.5" size="sm" onClick={onAddMembers}>
+                            <UserPlus className="size-3.5" />
+                            Add Members
+                        </Button>
+                    )}
+                    {isAdmin && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                                if (confirm(`Are you sure you want to delete "${dept.name}"? This will remove all members from this department.`)) {
+                                    router.delete(`/departments/${dept.id}`, {
+                                        onSuccess: () => { toast.success(`${dept.name} deleted.`); onClose(); },
+                                        onError: () => { toast.error('Failed to delete department.'); }
+                                    });
+                                }
+                            }}
+                        >
+                            <Trash2 className="size-3.5" />
+                        </Button>
+                    )}
                 </div>
             </SheetContent>
         </Sheet>
     );
 }
 
-// ── Department Detail Sheet (old — kept for row click) ────────────────────────
-
-function DepartmentDetailSheet({ dept, onClose }: { dept: Department | null; onClose: () => void }) {
-    if (!dept) return null;
-    const IconComponent = iconMap[dept.icon] || Users;
-    const c = colorMap[dept.color];
-    const deptMembers = mockMembers.filter((m) => m.departments.includes(dept.name));
-
-    return (
-        <Sheet open={!!dept} onOpenChange={(o) => !o && onClose()}>
-            <SheetContent side="right" className="w-full max-w-md p-0 flex flex-col overflow-hidden">
-                <SheetHeader className="px-5 py-4 border-b border-border">
-                    <div className="flex items-center gap-3">
-                        <div className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl border', c.bg, c.border)}>
-                            <IconComponent className={cn('size-5', c.icon)} />
-                        </div>
-                        <div>
-                            <SheetTitle className="text-base">{dept.name}</SheetTitle>
-                            <p className="text-sm text-muted-foreground">{dept.description}</p>
-                        </div>
-                    </div>
-                </SheetHeader>
-
-                <div className="flex-1 overflow-y-auto scrollbar-thin">
-                    {/* Stats */}
-                    <div className="px-5 py-4 border-b border-border">
-                        <div className="grid grid-cols-3 gap-3">
-                            <div className="rounded-lg bg-muted/50 p-3 text-center">
-                                <p className="text-xl font-bold">{dept.memberCount}</p>
-                                <p className="text-xs text-muted-foreground">Total</p>
-                            </div>
-                            <div className="rounded-lg bg-muted/50 p-3 text-center">
-                                <p className="text-xl font-bold text-emerald-600">{dept.activeCount}</p>
-                                <p className="text-xs text-muted-foreground">Active</p>
-                            </div>
-                            <div className="rounded-lg bg-muted/50 p-3 text-center">
-                                <p className="text-xl font-bold text-amber-600">{dept.memberCount - dept.activeCount}</p>
-                                <p className="text-xs text-muted-foreground">Inactive</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Leader */}
-                    <div className="px-5 py-4 border-b border-border">
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Department Leader</h4>
-                        <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-                            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">
-                                {dept.leader.split(' ').map((w) => w[0]).join('').slice(0, 2)}
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium">{dept.leader}</p>
-                                <p className="text-xs text-muted-foreground">Department Leader</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Members list */}
-                    <div className="px-5 py-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Members in this system</h4>
-                            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1">
-                                <Plus className="size-3" />
-                                Add
-                            </Button>
-                        </div>
-                        {deptMembers.length > 0 ? (
-                            <div className="flex flex-col gap-2">
-                                {deptMembers.map((m) => (
-                                    <div key={m.id} className="flex items-center gap-2.5 rounded-lg hover:bg-muted/40 p-2 transition-base">
-                                        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                                            {m.initials}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-medium truncate">{m.name}</p>
-                                            <p className="text-xs text-muted-foreground">{m.phone}</p>
-                                        </div>
-                                        <span className="text-xs text-muted-foreground">{m.attendanceRate}% att.</span>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground text-center py-4">
-                                No members linked yet in this demo
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                <div className="border-t border-border p-4 flex gap-2">
-                    <Button className="flex-1" size="sm">Manage Department</Button>
-                    <Button variant="outline" size="sm">Edit</Button>
-                </div>
-            </SheetContent>
-        </Sheet>
-    );
-}
+// ── Department Detail Sheet (removed - using ManageDepartmentSheet instead) ────────────────────────
 
 export default function Departments() {
-    const [selectedDept, setSelectedDept] = useState<Department | null>(null);
+    type DeptMember = { id: number; name: string; initials: string; phone: string | null };
+    type DeptPageProps = { departments: Department[]; members: DeptMember[]; is_admin: boolean };
+    const { departments: allDepts, members: allMembers, is_admin: isAdmin } = usePage<DeptPageProps>().props;
+
     const [manageDept, setManageDept]     = useState<Department | null>(null);
     const [editDept, setEditDept]         = useState<Department | null>(null);
     const [addMembersDept, setAddMembersDept] = useState<Department | null>(null);
+    const [inviteWorkerDept, setInviteWorkerDept] = useState<Department | null>(null);
     const [editOpen, setEditOpen]         = useState(false);
     const [addMembersOpen, setAddMembersOpen] = useState(false);
+    const [inviteWorkerOpen, setInviteWorkerOpen] = useState(false);
     const [manageOpen, setManageOpen]     = useState(false);
     const [newDeptOpen, setNewDeptOpen]   = useState(false);
     const [search, setSearch]             = useState('');
+    const [refreshKey, setRefreshKey]     = useState(0);
 
-    const totalMembers = mockDepartments.reduce((s, d) => s + d.memberCount, 0);
+    const totalMembers = allDepts.reduce((s, d) => s + (d.member_count ?? 0), 0);
 
-    const filtered = mockDepartments.filter(d =>
+    const filtered = allDepts.filter(d =>
         d.name.toLowerCase().includes(search.toLowerCase()) ||
-        d.leader.toLowerCase().includes(search.toLowerCase())
+        (d.leader ?? '').toLowerCase().includes(search.toLowerCase())
     );
+
+    const handleMembersAdded = () => {
+        setRefreshKey(prev => prev + 1);
+    };
+
+    // Check if user is a leader of a specific department
+    const isDeptLeader = (deptId: number) => {
+        const dept = allDepts.find(d => d.id === deptId);
+        return dept?.user_role === 'leader' || dept?.user_role === 'admin';
+    };
 
     return (
         <>
-            <Head title="Departments" />
             <div className="flex flex-col h-full overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                    <div>
-                        <h1 className="text-lg font-semibold tracking-tight">Departments</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {mockDepartments.length} departments · {totalMembers} total assignments
-                        </p>
-                    </div>
-                    <Button size="sm" className="h-8 gap-1.5" onClick={() => { setEditDept(null); setNewDeptOpen(true); }}>
-                        <Plus className="size-3.5" />
-                        New Department
-                    </Button>
-                </div>
-
                 {/* Search bar */}
                 <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
                     <div className="relative flex-1 max-w-sm">
@@ -613,6 +810,12 @@ export default function Departments() {
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
+                    {isAdmin && (
+                        <Button size="sm" className="h-8 gap-1.5" onClick={() => { setEditDept(null); setNewDeptOpen(true); }}>
+                            <Plus className="size-3.5" />
+                            New Department
+                        </Button>
+                    )}
                 </div>
 
                 {/* Table */}
@@ -630,13 +833,13 @@ export default function Departments() {
                         <tbody className="divide-y divide-border">
                             {filtered.map(dept => {
                                 const IconComponent = iconMap[dept.icon] || Users;
-                                const c = colorMap[dept.color];
-                                const activePct = Math.round((dept.activeCount / dept.memberCount) * 100);
+                                const c = colorMap[dept.color] ?? colorMap.blue;
+                                const activePct = dept.member_count > 0 ? Math.round((dept.active_count / dept.member_count) * 100) : 0;
 
                                 return (
                                     <tr
                                         key={dept.id}
-                                        className="hover:bg-muted/20 transition-base cursor-pointer group"
+                                        className="hover:bg-muted/20 transition-all cursor-pointer group"
                                         onClick={() => { setManageDept(dept); setManageOpen(true); }}
                                     >
                                         {/* Department */}
@@ -654,23 +857,27 @@ export default function Departments() {
 
                                         {/* Leader */}
                                         <td className="px-5 py-3.5">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
-                                                    {dept.leader.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                                            {dept.leader ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                                                        {dept.leader.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                                                    </div>
+                                                    <span className="text-sm text-muted-foreground">{dept.leader}</span>
                                                 </div>
-                                                <span className="text-sm text-muted-foreground">{dept.leader}</span>
-                                            </div>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground">—</span>
+                                            )}
                                         </td>
 
                                         {/* Total members */}
                                         <td className="px-5 py-3.5 font-semibold tabular-nums">
-                                            {dept.memberCount}
+                                            {dept.member_count}
                                         </td>
 
                                         {/* Active */}
                                         <td className="px-5 py-3.5">
-                                            <span className="text-sm font-semibold text-emerald-600">{dept.activeCount}</span>
-                                            <span className="text-xs text-muted-foreground ml-1">/ {dept.memberCount}</span>
+                                            <span className="text-sm font-semibold text-emerald-600">{dept.active_count}</span>
+                                            <span className="text-xs text-muted-foreground ml-1">/ {dept.member_count}</span>
                                         </td>
 
                                         {/* Activity bar */}
@@ -688,7 +895,7 @@ export default function Departments() {
 
                                         {/* Last activity */}
                                         <td className="px-5 py-3.5 text-muted-foreground text-xs">
-                                            {dept.lastActivity}
+                                            {dept.last_activity}
                                         </td>
 
                                         {/* Actions */}
@@ -701,10 +908,26 @@ export default function Departments() {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-40">
                                                     <DropdownMenuItem onClick={() => { setManageDept(dept); setManageOpen(true); }}>View details</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => { setEditDept(dept); setEditOpen(true); }}>Edit department</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => { setAddMembersDept(dept); setAddMembersOpen(true); }}>Add members</DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem className="text-destructive" onClick={() => toast.success(`${dept.name} deleted.`)}>Delete</DropdownMenuItem>
+                                                    {(isAdmin || isDeptLeader(dept.id)) && (
+                                                        <DropdownMenuItem onClick={() => { setEditDept(dept); setEditOpen(true); }}>Edit department</DropdownMenuItem>
+                                                    )}
+                                                    {(isAdmin || isDeptLeader(dept.id)) && (
+                                                        <DropdownMenuItem onClick={() => { setAddMembersDept(dept); setAddMembersOpen(true); }}>Add members</DropdownMenuItem>
+                                                    )}
+                                                    {isAdmin && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem className="text-destructive" onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (confirm(`Are you sure you want to delete "${dept.name}"? This will remove all members from this department.`)) {
+                                                                    router.delete(`/departments/${dept.id}`, {
+                                                                        onSuccess: () => { toast.success(`${dept.name} deleted.`); },
+                                                                        onError: () => { toast.error('Failed to delete department.'); }
+                                                                    });
+                                                                }
+                                                            }}>Delete</DropdownMenuItem>
+                                                        </>
+                                                    )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </td>
@@ -724,23 +947,37 @@ export default function Departments() {
                 </div>
             </div>
 
-            <DepartmentDetailSheet dept={selectedDept} onClose={() => setSelectedDept(null)} />
             <ManageDepartmentSheet
                 dept={manageDept}
                 open={manageOpen}
                 onClose={() => setManageOpen(false)}
                 onEdit={() => { setEditDept(manageDept); setEditOpen(true); }}
                 onAddMembers={() => { setAddMembersDept(manageDept); setAddMembersOpen(true); }}
+                onInviteWorker={() => { setInviteWorkerDept(manageDept); setInviteWorkerOpen(true); }}
+                allMembers={allMembers}
+                onMembersAdded={handleMembersAdded}
+                refreshKey={refreshKey}
+                isAdmin={isAdmin}
+                isLeader={manageDept ? isDeptLeader(manageDept.id) : false}
             />
             <EditDepartmentModal
                 dept={editDept}
                 open={editOpen || newDeptOpen}
                 onClose={() => { setEditOpen(false); setNewDeptOpen(false); }}
+                allMembers={allMembers}
             />
             <AddMembersModal
                 dept={addMembersDept}
                 open={addMembersOpen}
                 onClose={() => setAddMembersOpen(false)}
+                allMembers={allMembers}
+                onMembersAdded={handleMembersAdded}
+            />
+            <InviteWorkerModal
+                dept={inviteWorkerDept}
+                open={inviteWorkerOpen}
+                onClose={() => setInviteWorkerOpen(false)}
+                allMembers={allMembers}
             />
         </>
     );
@@ -752,3 +989,6 @@ Departments.layout = {
         { title: 'Departments', href: '/departments' },
     ],
 };
+
+
+

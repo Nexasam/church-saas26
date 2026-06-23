@@ -46,6 +46,11 @@ class ProspectiveMember extends Model
         return $this->belongsTo(Member::class, 'converted_member_id');
     }
 
+    public function logs()
+    {
+        return $this->hasMany(ProspectiveMemberLog::class)->orderByDesc('created_at');
+    }
+
     public function isConverted(): bool
     {
         return ! is_null($this->converted_at);

@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+﻿import { Head, router, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     CheckCircle2,
@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { mockMembers } from '@/lib/mock-data';
+
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -97,14 +97,14 @@ function QuotaBar({ used, limit, plan }: { used: number; limit: number; plan: st
 
 // ─── Individual Member SMS ────────────────────────────────────────────────────
 
-function IndividualSms({ quotaLeft, onSend }: { quotaLeft: number; onSend: (count: number) => void }) {
+function IndividualSms({ quotaLeft, onSend, members }: { quotaLeft: number; onSend: (count: number) => void; members: any[] }) {
     const [search, setSearch]     = useState('');
-    const [selected, setSelected] = useState<typeof mockMembers[0] | null>(null);
+    const [selected, setSelected] = useState<{ id: string; name: string; initials: string; phone: string } | null>(null);
     const [message, setMessage]   = useState('');
     const [sent, setSent]         = useState(false);
 
     const results = search.length > 1
-        ? mockMembers.filter(m =>
+        ? members.filter((m: any) =>
             m.name.toLowerCase().includes(search.toLowerCase()) ||
             m.phone.includes(search)
           ).slice(0, 6)
@@ -114,12 +114,12 @@ function IndividualSms({ quotaLeft, onSend }: { quotaLeft: number; onSend: (coun
     const canSend   = !!selected && message.trim().length > 0 && quotaLeft > 0;
 
     function send() {
-        if (!canSend) return;
-        setSent(true);
-        onSend(1);
-        toast.success(`SMS sent to ${selected!.name}`);
-        setTimeout(() => { setSent(false); setSelected(null); setMessage(''); setSearch(''); }, 2000);
+        if (!canSend || !selected) return;
+        router.post('/sms/individual', { member_id: Number(selected.id), message }, {
+            onSuccess: () => { setSent(true); onSend(1); setTimeout(() => { setSent(false); setSelected(null); setMessage(''); setSearch(''); }, 2000); },
+        });
     }
+
 
     if (sent) {
         return (
@@ -245,25 +245,25 @@ function IndividualSms({ quotaLeft, onSend }: { quotaLeft: number; onSend: (coun
 
 // ─── Bulk SMS Compose ─────────────────────────────────────────────────────────
 
-function BulkCompose({ quotaLeft, onSend }: { quotaLeft: number; onSend: (count: number) => void }) {
+function BulkCompose({ quotaLeft, onSend, groups, members }: { quotaLeft: number; onSend: (count: number) => void; groups: any[]; members: any[] }) {
     const [title,         setTitle]         = useState('');
     const [message,       setMessage]       = useState('');
     const [selectedGroup, setSelectedGroup] = useState('active');
 
-    const group       = recipientGroups.find(g => g.id === selectedGroup)!;
+    const group = (groups.find((g: any) => g.id === selectedGroup) ?? groups[0])!;
     const charsLeft   = MAX_SMS - message.length;
     const smsCount    = Math.ceil(message.length / MAX_SMS) || 1;
     const totalSms    = group.count * smsCount;
     const wouldExceed = totalSms > quotaLeft;
     const canSend     = !!title && message.trim().length > 0 && !wouldExceed && quotaLeft > 0;
 
+
     function send() {
         if (!canSend) return;
-        onSend(totalSms);
-        toast.success(`Campaign "${title}" sent to ${group.count} members.`);
-        setTitle(''); setMessage('');
+        router.post('/sms/bulk', { title, message, recipient_group: selectedGroup, recipients_count: group.count, sms_units: totalSms }, {
+            onSuccess: () => { onSend(totalSms); setTitle(''); setMessage(''); },
+        });
     }
-
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left: form */}
@@ -278,7 +278,7 @@ function BulkCompose({ quotaLeft, onSend }: { quotaLeft: number; onSend: (count:
                 <div>
                     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">Recipients</Label>
                     <div className="grid grid-cols-2 gap-2">
-                        {recipientGroups.map(g => (
+                        {groups.map((g: any) => (
                             <button
                                 key={g.id}
                                 onClick={() => setSelectedGroup(g.id)}
@@ -379,37 +379,39 @@ function BulkCompose({ quotaLeft, onSend }: { quotaLeft: number; onSend: (count:
     );
 }
 
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function Sms() {
-    const { church } = usePage<{ church?: { plan?: string } }>().props;
-    const plan        = church?.plan ?? 'growth';
-    const planConfig  = PLAN_LIMITS[plan] ?? PLAN_LIMITS.growth;
+type SmsPageProps = {
+    plan: string;
+    smsLimit: number;
+    smsUsed: number;
+    history: Array<{ id: number; title: string; message: string; recipients: number; sent: number; failed: number; status: 'sent'|'pending'|'failed'; date: string; type: string }>;
+    recipientGroups: Array<{ id: string; label: string; count: number }>;
+    members: Array<{ id: number; name: string; initials: string; phone: string | null }>;
+};
 
-    // mock: how many have been used this month
-    const [used, setUsed] = useState(247);
-    const quotaLeft = Math.max(0, planConfig.monthly - used);
+export default function Sms() {
+    const { plan, smsLimit, smsUsed, history: initialHistory, recipientGroups: serverGroups, members: serverMembers } =
+        usePage<SmsPageProps>().props;
+
+    const planConfig  = PLAN_LIMITS[plan] ?? PLAN_LIMITS.growth;
+    const [used, setUsed] = useState(smsUsed);
+    const quotaLeft = Math.max(0, smsLimit - used);
 
     const [tab,     setTab]     = useState<'bulk' | 'individual' | 'history'>('bulk');
-    const [history, setHistory] = useState(mockSmsHistory);
+    const [history, setHistory] = useState(initialHistory);
+
+    // Use real recipientGroups from server if available, fall back to defaults
+    const resolvedGroups = serverGroups?.length ? serverGroups : recipientGroups;
+    // Use real members from server for individual search
+    const resolvedMembers = serverMembers?.length ? serverMembers.map(m => ({
+        id: String(m.id), name: m.name, initials: m.initials, phone: m.phone ?? ''
+    })) : [];
 
     function onSend(count: number) {
         setUsed(u => u + count);
-        if (tab !== 'history') {
-            setHistory(prev => [{
-                id:          `sms-${Date.now()}`,
-                title:       tab === 'individual' ? 'Individual SMS' : 'New Campaign',
-                message:     '',
-                recipients:  count,
-                sent:        count,
-                failed:      0,
-                status:      'sent' as const,
-                date:        new Date().toLocaleString('en-NG'),
-                type:        tab,
-            }, ...prev]);
-        }
     }
-
     const tabs = [
         { id: 'bulk' as const,       label: 'Bulk Send',   icon: Users },
         { id: 'individual' as const, label: 'To a Member', icon: User },
@@ -420,16 +422,6 @@ export default function Sms() {
         <>
             <Head title="SMS" />
             <div className="flex flex-col h-full overflow-hidden">
-
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                    <div>
-                        <h1 className="text-lg font-semibold tracking-tight">SMS</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {planConfig.monthly.toLocaleString()} SMS remaining this month
-                        </p>
-                    </div>
-                </div>
 
                 {/* Tabs */}
                 <div className="flex items-center gap-0 border-b border-border px-6 shrink-0">
@@ -461,14 +453,12 @@ export default function Sms() {
                         </div>
                     )}
 
-                    {tab === 'bulk' && (
-                        <BulkCompose quotaLeft={quotaLeft} onSend={onSend} />
-                    )}
+                    {tab === 'bulk' && (<BulkCompose quotaLeft={quotaLeft} onSend={onSend} groups={resolvedGroups} members={resolvedMembers} />)}
 
                     {tab === 'individual' && (
                         <div className="card-base p-5 max-w-lg">
                             <h3 className="text-sm font-semibold mb-4">Send to a Specific Member</h3>
-                            <IndividualSms quotaLeft={quotaLeft} onSend={onSend} />
+                            <IndividualSms quotaLeft={quotaLeft} onSend={onSend} members={resolvedMembers} />
                         </div>
                     )}
 
@@ -535,3 +525,7 @@ Sms.layout = {
         { title: 'SMS', href: '/sms' },
     ],
 };
+
+
+
+

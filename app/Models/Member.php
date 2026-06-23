@@ -11,6 +11,10 @@ class Member extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'dob' => 'date',
+    ];
+
     /**
      * A member can belong to many churches (multi-church SaaS)
      */

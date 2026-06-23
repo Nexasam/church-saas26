@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head, router, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     Baby,
@@ -46,7 +46,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { mockCareCases, mockMembers, type CareCase } from '@/lib/mock-data';
+import { type CareCase } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
@@ -145,7 +145,7 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
                         </div>
                         <div>
                             <SheetTitle className="text-base leading-snug">{careCase.title}</SheetTitle>
-                            <p className="text-sm text-muted-foreground mt-0.5">{careCase.memberName}</p>
+                            <p className="text-sm text-muted-foreground mt-0.5">{careCase.member_name}</p>
                         </div>
                     </div>
                 </SheetHeader>
@@ -162,14 +162,14 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
                         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Description</h4>
                         <p className="text-sm leading-relaxed">{careCase.description}</p>
                     </div>
-                    {careCase.assignedTo && (
+                    {careCase.assigned_to && (
                         <div className="px-5 py-4 border-b border-border">
                             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Assigned To</h4>
                             <div className="flex items-center gap-2.5 rounded-lg bg-muted/50 p-2.5">
                                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                                    {careCase.assignedTo.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                                    {careCase.assigned_to.split(' ').map(w => w[0]).join('').slice(0, 2)}
                                 </div>
-                                <span className="text-sm font-medium">{careCase.assignedTo}</span>
+                                <span className="text-sm font-medium">{careCase.assigned_to}</span>
                             </div>
                         </div>
                     )}
@@ -207,12 +207,13 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
 // ─── Care Tab ─────────────────────────────────────────────────────────────────
 
 function CareTab() {
+    const { cases } = usePage<any>().props;
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | CareCase['status']>('all');
     const [selectedCase, setSelectedCase] = useState<CareCase | null>(null);
 
-    const filtered = mockCareCases.filter(c => {
-        const matchSearch = c.memberName.toLowerCase().includes(search.toLowerCase()) || c.title.toLowerCase().includes(search.toLowerCase());
+    const filtered = (cases ?? []).filter((c: any) => {
+        const matchSearch = c.member_name.toLowerCase().includes(search.toLowerCase()) || c.title.toLowerCase().includes(search.toLowerCase());
         const matchStatus = statusFilter === 'all' || c.status === statusFilter;
         return matchSearch && matchStatus;
     });
@@ -252,7 +253,7 @@ function CareTab() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-semibold line-clamp-1">{careCase.title}</p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">{careCase.memberName}</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">{careCase.member_name}</p>
                                         </div>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
@@ -273,12 +274,12 @@ function CareTab() {
                                             {pc.label}
                                         </div>
                                     </div>
-                                    {careCase.assignedTo && (
+                                    {careCase.assigned_to && (
                                         <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-border">
                                             <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
-                                                {careCase.assignedTo.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                                                {careCase.assigned_to.split(' ').map(w => w[0]).join('').slice(0, 2)}
                                             </div>
-                                            <span className="text-xs text-muted-foreground truncate">{careCase.assignedTo}</span>
+                                            <span className="text-xs text-muted-foreground truncate">{careCase.assigned_to}</span>
                                             <span className="ml-auto text-xs text-muted-foreground/60">{careCase.createdAt}</span>
                                         </div>
                                     )}
@@ -301,21 +302,23 @@ function CareTab() {
 
 // ─── Celebrations Tab ─────────────────────────────────────────────────────────
 
-function CelebrationsTab({ categories }: { categories: CelebrationCategory[] }) {
-    const [celebrations, setCelebrations] = useState(MOCK_CELEBRATIONS);
+function CelebrationsTab({ categories, initialCelebrations }: { categories: CelebrationCategory[]; initialCelebrations: any[] }) {
+    const [celebrations, setCelebrations] = useState(initialCelebrations);
     const [addOpen, setAddOpen] = useState(false);
-    const [form, setForm] = useState({ memberName: '', categoryId: 'birthday', date: '', note: '' });
+    const [form, setForm] = useState({ member_name: '', category_id: 'birthday', date: '', note: '' });
 
-    const upcoming = celebrations.filter(c => new Date(c.date) >= new Date()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const past = celebrations.filter(c => new Date(c.date) < new Date());
+    const upcoming = celebrations.filter((c: any) => new Date(c.date) >= new Date()).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const past = celebrations.filter((c: any) => new Date(c.date) < new Date());
 
-    function acknowledge(id: string) {
-        setCelebrations(prev => prev.map(c => c.id === id ? { ...c, acknowledged: true } : c));
+    function acknowledge(id: any) {
+        router.patch(`/love/celebrations/${id}/acknowledge`, {}, {
+            onSuccess: () => setCelebrations(prev => prev.map((c: any) => c.id === id ? { ...c, acknowledged: true } : c)),
+        });
         toast.success('Celebration acknowledged!');
     }
 
-    function getCategoryById(id: string) {
-        return categories.find(c => c.id === id);
+    function getCategoryById(id: any) {
+        return categories.find((c: any) => String(c.id) === String(id));
     }
 
     function CelebCard({ cel }: { cel: Celebration }) {
@@ -328,7 +331,7 @@ function CelebrationsTab({ categories }: { categories: CelebrationCategory[] }) 
                     <Icon className="size-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold">{cel.memberName}</p>
+                    <p className="text-sm font-semibold">{cel.member_name}</p>
                     <p className="text-xs text-muted-foreground">{cat.name} · {cel.date}</p>
                     {cel.note && <p className="text-xs text-muted-foreground/70 mt-0.5 italic">"{cel.note}"</p>}
                 </div>
@@ -386,11 +389,11 @@ function CelebrationsTab({ categories }: { categories: CelebrationCategory[] }) 
                     <div className="flex flex-col gap-4 py-2">
                         <div>
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Member</Label>
-                            <Input value={form.memberName} onChange={e => setForm(p => ({ ...p, memberName: e.target.value }))} placeholder="e.g. Bro. Samuel" className="h-9" />
+                            <Input value={form.member_name} onChange={e => setForm(p => ({ ...p, member_name: e.target.value }))} placeholder="e.g. Bro. Samuel" className="h-9" />
                         </div>
                         <div>
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Category</Label>
-                            <select value={form.categoryId} onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))} className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                            <select value={form.category_id} onChange={e => setForm(p => ({ ...p, category_id: e.target.value }))} className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
                                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                         </div>
@@ -404,15 +407,19 @@ function CelebrationsTab({ categories }: { categories: CelebrationCategory[] }) 
                         </div>
                         <div className="flex gap-3 pt-1">
                             <Button className="flex-1" onClick={() => {
-                                if (!form.memberName || !form.date) return;
-                                setCelebrations(prev => [{
-                                    id: `c${Date.now()}`, memberId: '', memberName: form.memberName,
-                                    initials: form.memberName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
-                                    categoryId: form.categoryId, date: form.date, note: form.note, acknowledged: false,
-                                }, ...prev]);
-                                setForm({ memberName: '', categoryId: 'birthday', date: '', note: '' });
-                                setAddOpen(false);
-                                toast.success('Celebration added!');
+                                if (!form.member_name || !form.date) return;
+                                router.post('/love/celebrations', {
+                                    member_name:  form.member_name,
+                                    category_id:  form.category_id,
+                                    date:         form.date,
+                                    note:         form.note,
+                                }, {
+                                    onSuccess: () => {
+                                        setForm({ member_name: '', category_id: 'birthday', date: '', note: '' });
+                                        setAddOpen(false);
+                                        toast.success('Celebration added!');
+                                    },
+                                });
                             }}>Save</Button>
                             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
                         </div>
@@ -490,8 +497,9 @@ function CategoriesTab({ categories, setCategories }: {
                                                     <Edit className="size-3.5" />
                                                 </Button>
                                                 <Button variant="ghost" size="icon" className="size-7 text-destructive" onClick={() => {
-                                                    setCategories(prev => prev.filter(c => c.id !== cat.id));
-                                                    toast.success(`"${cat.name}" deleted.`);
+                                                    router.delete(`/love/categories/${cat.id}`, {
+                                                        onSuccess: () => { setCategories(prev => prev.filter((c: any) => c.id !== cat.id)); toast.success(`"${cat.name}" deleted.`); },
+                                                    });
                                                 }}>
                                                     <Trash2 className="size-3.5" />
                                                 </Button>
@@ -548,10 +556,13 @@ function CategoriesTab({ categories, setCategories }: {
                         </div>
                         <div className="flex gap-3 pt-1">
                             <Button className="flex-1" disabled={!form.name} onClick={() => {
-                                setCategories(prev => [...prev, { id: `custom-${Date.now()}`, name: form.name, description: form.description, icon: form.icon, color: form.color, isSystem: false }]);
-                                setForm({ name: '', description: '', icon: 'PartyPopper', color: COLOR_CHOICES[0].value });
-                                setAddOpen(false);
-                                toast.success(`"${form.name}" category created.`);
+                                router.post('/love/categories', form, {
+                                    onSuccess: () => {
+                                        setForm({ name: '', description: '', icon: 'PartyPopper', color: COLOR_CHOICES[0].value });
+                                        setAddOpen(false);
+                                        toast.success(`"${form.name}" category created.`);
+                                    },
+                                });
                             }}>Create</Button>
                             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
                         </div>
@@ -564,17 +575,21 @@ function CategoriesTab({ categories, setCategories }: {
 
 // ─── Prayer Board Tab ─────────────────────────────────────────────────────────
 
-function PrayerTab() {
-    const [prayers, setPrayers] = useState(MOCK_PRAYERS);
+function PrayerTab({ initialPrayers }: { initialPrayers: any[] }) {
+    const [prayers, setPrayers] = useState(initialPrayers);
     const [addOpen, setAddOpen] = useState(false);
-    const [form, setForm] = useState({ memberName: '', request: '' });
+    const [form, setForm] = useState({ member_name: '', request: '' });
     const [filter, setFilter] = useState<'all' | 'active' | 'resolved'>('all');
 
-    const shown = prayers.filter(p => filter === 'all' ? true : filter === 'active' ? !p.resolved : p.resolved);
+    const shown = prayers.filter((p: any) => filter === 'all' ? true : filter === 'active' ? !p.resolved : p.resolved);
 
-    function resolve(id: string) {
-        setPrayers(prev => prev.map(p => p.id === id ? { ...p, resolved: true } : p));
-        toast.success('Prayer request marked as answered!');
+    function resolve(id: any) {
+        router.patch(`/love/prayers/${id}/resolve`, {}, {
+            onSuccess: () => {
+                setPrayers(prev => prev.map((p: any) => p.id === id ? { ...p, resolved: !p.resolved } : p));
+            },
+        });
+        toast.success('Prayer request updated!');
     }
 
     return (
@@ -594,7 +609,7 @@ function PrayerTab() {
             </div>
 
             <div className="flex flex-col gap-3">
-                {shown.map(prayer => (
+                {shown.map((prayer: any) => (
                     <div key={prayer.id} className={cn('rounded-xl border p-4 transition-all', prayer.resolved ? 'opacity-60 bg-muted/30' : 'bg-card border-border')}>
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-2.5 mb-2">
@@ -602,7 +617,7 @@ function PrayerTab() {
                                     {prayer.initials}
                                 </div>
                                 <div>
-                                    <p className="text-sm font-semibold">{prayer.memberName}</p>
+                                    <p className="text-sm font-semibold">{prayer.member_name}</p>
                                     <p className="text-xs text-muted-foreground">{prayer.date}</p>
                                 </div>
                             </div>
@@ -633,18 +648,17 @@ function PrayerTab() {
                     <div className="flex flex-col gap-4 py-2">
                         <div>
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Member Name</Label>
-                            <Input value={form.memberName} onChange={e => setForm(p => ({ ...p, memberName: e.target.value }))} placeholder="e.g. Sis. Ada" className="h-9" />
+                            <Input value={form.member_name} onChange={e => setForm(p => ({ ...p, member_name: e.target.value }))} placeholder="e.g. Sis. Ada" className="h-9" />
                         </div>
                         <div>
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Prayer Request</Label>
                             <textarea value={form.request} onChange={e => setForm(p => ({ ...p, request: e.target.value }))} className="w-full rounded-lg border border-border bg-muted/50 text-sm p-3 resize-none focus:outline-none focus:ring-1 focus:ring-ring" rows={3} placeholder="Describe the prayer need..." />
                         </div>
                         <div className="flex gap-3 pt-1">
-                            <Button className="flex-1" disabled={!form.memberName || !form.request} onClick={() => {
-                                setPrayers(prev => [{ id: `p${Date.now()}`, memberName: form.memberName, initials: form.memberName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(), request: form.request, date: new Date().toISOString().split('T')[0], resolved: false }, ...prev]);
-                                setForm({ memberName: '', request: '' });
-                                setAddOpen(false);
-                                toast.success('Prayer request added.');
+                            <Button className="flex-1" disabled={!form.member_name || !form.request} onClick={() => {
+                                router.post('/love/prayers', { member_name: form.member_name, request: form.request }, {
+                                    onSuccess: () => { setForm({ member_name: '', request: '' }); setAddOpen(false); toast.success('Prayer request added.'); },
+                                });
                             }}>Add Request</Button>
                             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
                         </div>
@@ -658,8 +672,12 @@ function PrayerTab() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Love() {
+    const { cases, categories: serverCategories, celebrations: serverCelebrations, prayers: serverPrayers } = usePage<any>().props;
+
     const [tab, setTab] = useState<Tab>('care');
-    const [categories, setCategories] = useState<CelebrationCategory[]>([...SYSTEM_CATEGORIES]);
+    const [categories, setCategories] = useState<CelebrationCategory[]>(
+        serverCategories?.length ? serverCategories : [...SYSTEM_CATEGORIES]
+    );
 
     const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
         { id: 'care',         label: 'Care Cases',   icon: HeartHandshake },
@@ -668,29 +686,15 @@ export default function Love() {
         { id: 'prayer',       label: 'Prayer Board', icon: Heart },
     ];
 
-    const openCount   = mockCareCases.filter(c => c.status === 'open').length;
-    const urgentCount = mockCareCases.filter(c => c.priority === 'urgent').length;
-    const unackCelebrations = MOCK_CELEBRATIONS.filter(c => !c.acknowledged && new Date(c.date) >= new Date()).length;
+    const openCount   = (cases ?? []).filter((c: any) => c.status === 'open').length;
+    const urgentCount = (cases ?? []).filter((c: any) => c.priority === 'urgent').length;
+    const celebList   = serverCelebrations ?? MOCK_CELEBRATIONS;
+    const unackCelebrations = celebList.filter((c: any) => !c.acknowledged && new Date(c.date) >= new Date()).length;
 
     return (
         <>
             <Head title="Love System" />
             <div className="flex flex-col h-full overflow-hidden">
-
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-                    <div>
-                        <h1 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-                            <Heart className="size-5 text-rose-500" />
-                            Love System
-                        </h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {openCount} open cases
-                            {urgentCount > 0 && <> · <span className="text-red-600 font-medium">{urgentCount} urgent</span></>}
-                            {unackCelebrations > 0 && <> · <span className="text-amber-600 font-medium">{unackCelebrations} celebrations pending</span></>}
-                        </p>
-                    </div>
-                </div>
 
                 {/* Tabs */}
                 <div className="flex items-center gap-0 border-b border-border px-6 shrink-0">
@@ -716,9 +720,9 @@ export default function Love() {
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin">
                     {tab === 'care'         && <CareTab />}
-                    {tab === 'celebrations' && <CelebrationsTab categories={categories} />}
+                    {tab === 'celebrations' && <CelebrationsTab categories={categories} initialCelebrations={celebList} />}
                     {tab === 'categories'   && <CategoriesTab categories={categories} setCategories={setCategories} />}
-                    {tab === 'prayer'       && <PrayerTab />}
+                    {tab === 'prayer'       && <PrayerTab initialPrayers={serverPrayers ?? MOCK_PRAYERS} />}
                 </div>
             </div>
         </>
@@ -731,3 +735,6 @@ Love.layout = {
         { title: 'Love System', href: '/love' },
     ],
 };
+
+
+

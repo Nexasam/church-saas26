@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Church;
+use App\Models\PlatformSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -56,7 +57,7 @@ class PlatformAdminController extends Controller
     {
         $user = auth()->user();
 
-        // Platform config stored in a simple config file / DB — using env/config for now
+        // Get persisted settings or use defaults
         return Inertia::render('platform/settings', [
             'adminUser' => [
                 'id'    => $user->id,
@@ -64,19 +65,19 @@ class PlatformAdminController extends Controller
                 'email' => $user->email,
             ],
             'platformConfig' => [
-                'app_name'      => config('app.name', 'Church OS'),
-                'support_email' => env('SUPPORT_EMAIL', 'support@churchos.app'),
+                'app_name'      => PlatformSetting::get('app_name', config('app.name', 'Church OS')),
+                'support_email' => PlatformSetting::get('support_email', env('SUPPORT_EMAIL', 'support@churchos.app')),
                 'app_url'       => config('app.url'),
             ],
-            'plans' => [
+            'plans' => PlatformSetting::get('plans', [
                 ['id' => 'starter',    'name' => 'Starter',    'price' => 15000, 'sms_limit' => 300,  'member_limit' => 200,  'admin_limit' => 1],
                 ['id' => 'growth',     'name' => 'Growth',     'price' => 35000, 'sms_limit' => 500,  'member_limit' => 1000, 'admin_limit' => 5],
                 ['id' => 'enterprise', 'name' => 'Enterprise', 'price' => 85000, 'sms_limit' => 1000, 'member_limit' => 0,    'admin_limit' => 0],
-            ],
+            ]),
             'smsConfig' => [
-                'provider'   => env('SMS_PROVIDER', 'termii'),
-                'termii_key' => env('TERMII_API_KEY') ? '••••••••' : '',
-                'sender_id'  => env('SMS_SENDER_ID', 'ChurchOS'),
+                'provider'   => PlatformSetting::get('sms_provider', env('SMS_PROVIDER', 'termii')),
+                'termii_key' => PlatformSetting::get('termii_api_key') ? '••••••••' : '',
+                'sender_id'  => PlatformSetting::get('sms_sender_id', env('SMS_SENDER_ID', 'ChurchOS')),
             ],
         ]);
     }
@@ -103,33 +104,49 @@ class PlatformAdminController extends Controller
 
     public function updatePlatformConfig(Request $request)
     {
-        // In production you'd persist these to a settings table
-        // For now just return success
-        $request->validate([
+        $validated = $request->validate([
             'app_name'      => ['required', 'string', 'max:100'],
             'support_email' => ['required', 'email'],
         ]);
+
+        PlatformSetting::set('app_name', $validated['app_name'], 'string', 'general');
+        PlatformSetting::set('support_email', $validated['support_email'], 'string', 'general');
+
         return back()->with('success', 'Platform config updated.');
     }
 
     public function updatePlans(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'plans'              => ['required', 'array'],
             'plans.*.name'       => ['required', 'string'],
             'plans.*.price'      => ['required', 'integer', 'min:0'],
             'plans.*.sms_limit'  => ['required', 'integer', 'min:0'],
         ]);
+
+        PlatformSetting::set('plans', $validated['plans'], 'json', 'plans');
+
         return back()->with('success', 'Plans updated.');
     }
 
     public function updateSmsConfig(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'provider'  => ['required', 'in:termii,twilio,smsbulk'],
             'api_key'   => ['nullable', 'string'],
             'sender_id' => ['nullable', 'string', 'max:11'],
         ]);
+
+        PlatformSetting::set('sms_provider', $validated['provider'], 'string', 'sms');
+        
+        if ($validated['api_key']) {
+            PlatformSetting::set('termii_api_key', $validated['api_key'], 'string', 'sms');
+        }
+        
+        if ($validated['sender_id']) {
+            PlatformSetting::set('sms_sender_id', $validated['sender_id'], 'string', 'sms');
+        }
+
         return back()->with('success', 'SMS configuration updated.');
     }
 
