@@ -166,6 +166,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('worker/department/{department}', [\App\Http\Controllers\WorkerController::class, 'department'])->name('worker.department');
     Route::patch('worker/department/{department}/member/{member}', [\App\Http\Controllers\WorkerController::class, 'updateMemberRole'])->name('worker.member.update');
     Route::delete('worker/department/{department}/member/{member}', [\App\Http\Controllers\WorkerController::class, 'removeMember'])->name('worker.member.remove');
+    Route::post('worker/department/{department}/members', [\App\Http\Controllers\WorkerController::class, 'addMember'])->name('worker.member.add');
+    Route::post('worker/department/{department}/attendance', [\App\Http\Controllers\WorkerController::class, 'markAttendance'])->name('worker.attendance.mark');
 });
 
 require __DIR__.'/settings.php';

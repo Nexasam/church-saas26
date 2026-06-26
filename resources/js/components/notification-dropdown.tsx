@@ -72,7 +72,8 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
     }
   }
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: string, data?: Record<string, any>) => {
+    if (type.includes('WorkerSms') || data?.type === 'worker_sms') return '💬'
     if (type.includes('CareCase')) return '🏥'
     if (type.includes('FollowUp')) return '📞'
     if (type.includes('Celebration')) return '🎉'
@@ -83,6 +84,9 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
 
   const getNotificationMessage = (notification: Notification) => {
     const { type, data } = notification
+    if (data?.type === 'worker_sms') {
+      return `📨 ${data.title}: "${data.message?.slice(0, 80)}${data.message?.length > 80 ? '...' : ''}"`
+    }
     if (type.includes('CareCase')) {
       return `New care case assigned: ${data.member_name}`
     }
@@ -95,7 +99,7 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
       return `Celebration: ${data.member_name} - ${data.category}`
     }
     if (type.includes('Sms')) {
-      return `SMScampaign "${data.title}" sent to ${data.sent_count} recipients`
+      return `SMS campaign "${data.title}" sent to ${data.sent_count} recipients`
     }
     if (type.includes('Invitation')) {
       return 'You have been invited to join as an admin'
@@ -118,14 +122,14 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
   }
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="absolute right-0 top-full mt-2 w-96 bg-popover rounded-lg shadow-xl border border-border z-50">
+      <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
+          <h3 className="font-semibold text-foreground">Notifications</h3>
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+              className="text-sm text-primary hover:underline"
             >
               Mark all as read
             </button>
@@ -135,35 +139,35 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
 
       <div className="max-h-96 overflow-y-auto">
         {loading ? (
-          <div className="p-4 text-center text-gray-500">Loading...</div>
+          <div className="p-4 text-center text-muted-foreground text-sm">Loading...</div>
         ) : notifications.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-            <p>No notifications yet</p>
+          <div className="p-8 text-center text-muted-foreground">
+            <Bell className="w-12 h-12 mx-auto mb-2 text-muted-foreground/30" />
+            <p className="text-sm">No notifications yet</p>
           </div>
         ) : (
           notifications.map(notification => (
             <div
               key={notification.id}
-              className={`p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors ${
-                !notification.read_at ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+              className={`p-4 border-b border-border hover:bg-muted/50 transition-colors ${
+                !notification.read_at ? 'bg-primary/5' : ''
               }`}
             >
               <div className="flex items-start gap-3">
-                <span className="text-2xl">{getNotificationIcon(notification.type)}</span>
+                <span className="text-xl">{getNotificationIcon(notification.type, notification.data)}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900 dark:text-white">
+                  <p className="text-sm text-foreground leading-snug">
                     {getNotificationMessage(notification)}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {formatTime(notification.created_at)}
                   </p>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   {!notification.read_at && (
                     <button
                       onClick={() => markAsRead(notification.id)}
-                      className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+                      className="p-1 text-muted-foreground hover:text-emerald-600 transition-colors"
                       title="Mark as read"
                     >
                       <Check className="w-4 h-4" />
@@ -171,7 +175,7 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
                   )}
                   <button
                     onClick={() => deleteNotification(notification.id)}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                    className="p-1 text-muted-foreground hover:text-destructive transition-colors"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -183,13 +187,13 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
         )}
       </div>
 
-      <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-3 border-t border-border">
         <button
           onClick={() => {
             router.get('/notifications')
             onClose()
           }}
-          className="w-full text-center text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+          className="w-full text-center text-sm text-primary hover:underline"
         >
           View all notifications
         </button>

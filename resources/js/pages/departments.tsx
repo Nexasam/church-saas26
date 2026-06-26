@@ -411,25 +411,18 @@ function AddMembersModal({ dept, open, onClose, allMembers, onMembersAdded }: {
     const [loading, setLoading] = useState(false);
     const [deptMembers, setDeptMembers] = useState<number[]>([]);
 
-    if (!dept) return null;
-
-    // Fetch department members when modal opens
+    // ⚠️ hooks must be before any conditional return
     useEffect(() => {
-        if (dept && open) {
-            setLoading(true);
-            fetch(`/departments/${dept.id}/members`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(r => {
-                    if (!r.ok) throw new Error('Failed to fetch members');
-                    return r.json();
-                })
-                .then((data: any[]) => setDeptMembers(data.map((m: any) => m.id)))
-                .catch((err) => {
-                    console.error('Error fetching department members:', err);
-                    setDeptMembers([]);
-                })
-                .finally(() => setLoading(false));
-        }
-    }, [dept, open]);
+        if (!dept || !open) return;
+        setLoading(true);
+        fetch(`/departments/${dept.id}/members`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); })
+            .then((data: any[]) => setDeptMembers(data.map((m: any) => m.id)))
+            .catch(() => setDeptMembers([]))
+            .finally(() => setLoading(false));
+    }, [dept?.id, open]);
+
+    if (!dept) return null;
 
     const available = allMembers.filter((m: any) =>
         !deptMembers.includes(m.id) &&
@@ -465,6 +458,7 @@ function AddMembersModal({ dept, open, onClose, allMembers, onMembersAdded }: {
     function handleClose() {
         setSelected([]);
         setSearch('');
+        setDeptMembers([]);
         onClose();
     }
 

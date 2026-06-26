@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Scopes\ChurchScope;
+use App\Models\Pivots\DepartmentMemberPivot;
 use Illuminate\Database\Eloquent\Model;
 
 class Department extends Model
@@ -24,28 +25,25 @@ class Department extends Model
     public function members()
     {
         return $this->belongsToMany(Member::class)
+                    ->using(DepartmentMemberPivot::class)
                     ->withPivot(['role', 'is_active', 'joined_at'])
                     ->withTimestamps();
     }
 
-    /**
-     * Get only workers (members with worker or leader role)
-     */
     public function workers()
     {
         return $this->belongsToMany(Member::class)
+                    ->using(DepartmentMemberPivot::class)
                     ->withPivot(['role', 'is_active', 'joined_at'])
                     ->wherePivotIn('role', ['worker', 'leader'])
                     ->wherePivot('is_active', true)
                     ->withTimestamps();
     }
 
-    /**
-     * Get only leaders
-     */
     public function leaders()
     {
         return $this->belongsToMany(Member::class)
+                    ->using(DepartmentMemberPivot::class)
                     ->withPivot(['role', 'is_active', 'joined_at'])
                     ->wherePivot('role', 'leader')
                     ->wherePivot('is_active', true)

@@ -53,6 +53,9 @@ export function AppTopBar() {
     const [notifOpen, setNotifOpen] = useState(false);
     const getInitials = useInitials();
 
+    const isAdmin = auth?.user?.is_super_admin ||
+        (auth?.user?.role && auth.user.role.slug !== 'member' && auth.user.role.slug !== 'worker');
+
     const filteredMembers = searchQuery.length > 1
         ? mockMembers.filter((m) =>
             m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -139,7 +142,8 @@ export function AppTopBar() {
             </div>
 
             <div className="ml-auto flex items-center gap-1">
-                {/* Quick Create */}
+                {/* Quick Create — admin only */}
+                {isAdmin && (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button size="sm" className="h-8 gap-1.5">
@@ -161,8 +165,9 @@ export function AppTopBar() {
                         ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
+                )}
 
-                <Separator orientation="vertical" className="h-5 mx-1" />
+                {isAdmin && <Separator orientation="vertical" className="h-5 mx-1" />}
 
                 {/* Notifications */}
                 <div className="relative">

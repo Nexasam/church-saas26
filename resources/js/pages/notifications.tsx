@@ -2,10 +2,10 @@ import { Bell, Check, Trash2, Settings, Filter, Heart, Phone, PartyPopper, Messa
 import { useEffect, useState } from 'react'
 import React from 'react'
 import { Head, router, usePage } from '@inertiajs/react'
-import	AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { dashboard } from '@/routes'
 
 interface Notification {
   id: string
@@ -116,6 +116,7 @@ export default function NotificationsPage() {
   }
 
   const getNotificationIcon = (type: string) => {
+    if (type.includes('WorkerSms')) return MessageSquare
     if (type.includes('CareCase')) return Heart
     if (type.includes('FollowUp')) return Phone
     if (type.includes('Celebration')) return PartyPopper
@@ -125,6 +126,7 @@ export default function NotificationsPage() {
   }
 
   const getNotificationColor = (type: string) => {
+    if (type.includes('WorkerSms')) return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
     if (type.includes('CareCase')) return 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
     if (type.includes('FollowUp')) return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
     if (type.includes('Celebration')) return 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
@@ -134,6 +136,7 @@ export default function NotificationsPage() {
   }
 
   const getNotificationType = (type: string) => {
+    if (type.includes('WorkerSms')) return 'sms'
     if (type.includes('CareCase')) return 'care'
     if (type.includes('FollowUp')) return 'followup'
     if (type.includes('Celebration')) return 'celebration'
@@ -144,23 +147,16 @@ export default function NotificationsPage() {
 
   const getNotificationMessage = (notification: Notification) => {
     const { type, data } = notification
-    if (type.includes('CareCase')) {
-      return `New care case assigned: ${data.member_name}`
+    if (data?.type === 'worker_sms' || type.includes('WorkerSms')) {
+      const preview = data.message?.slice(0, 100) ?? ''
+      const ellipsis = (data.message?.length ?? 0) > 100 ? '…' : ''
+      return `${data.title}: "${preview}${ellipsis}"`
     }
-    if (type.includes('FollowUp')) {
-      return data.task_id
-        ? `Follow-up task due: ${data.name}`
-        : `Follow-up reminder: ${data.name}`
-    }
-    if (type.includes('Celebration')) {
-      return `Celebration: ${data.member_name} - ${data.category}`
-    }
-    if (type.includes('Sms')) {
-      return `SMS campaign "${data.title}" sent to ${data.sent_count} recipients`
-    }
-    if (type.includes('Invitation')) {
-      return 'You have been invited to join as an admin'
-    }
+    if (type.includes('CareCase')) return `New care case assigned: ${data.member_name}`
+    if (type.includes('FollowUp')) return data.task_id ? `Follow-up task due: ${data.name}` : `Follow-up reminder: ${data.name}`
+    if (type.includes('Celebration')) return `Celebration: ${data.member_name} - ${data.category}`
+    if (type.includes('Sms')) return `SMS campaign "${data.title}" sent to ${data.sent_count} recipients`
+    if (type.includes('Invitation')) return 'You have been invited to join as an admin'
     return 'New notification'
   }
 
@@ -185,7 +181,7 @@ export default function NotificationsPage() {
   })
 
   return (
-    <AppLayout>
+    <>
       <Head title="Notifications" />
 
       <div className="max-w-4xl mx-auto p-6">
@@ -405,6 +401,13 @@ export default function NotificationsPage() {
           )}
         </div>
       </div>
-    </AppLayout>
+    </>
   )
 }
+
+NotificationsPage.layout = {
+  breadcrumbs: [
+    { title: 'Dashboard', href: dashboard() },
+    { title: 'Notifications', href: '/notifications' },
+  ],
+};

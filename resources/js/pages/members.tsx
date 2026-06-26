@@ -97,10 +97,18 @@ const statusConfig = {
 };
 
 const membershipConfig = {
-    full: { label: 'Full Member', color: 'bg-primary/10 text-primary' },
-    associate: { label: 'Associate', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
-    visitor: { label: 'Visitor', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    full:      { label: 'Full Member', color: 'bg-primary/10 text-primary' },
+    associate: { label: 'Associate',   color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+    visitor:   { label: 'Visitor',     color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
 };
+
+// Derive Worker vs Member based on department membership
+function getMemberTypeLabel(member: Member) {
+    if (member.departments && member.departments.length > 0) {
+        return { label: 'Worker', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' };
+    }
+    return { label: 'Member', color: 'bg-primary/10 text-primary' };
+}
 
 const timelineTypeIcon: Record<string, string> = {
     attendance: 'ðŸ“‹',
@@ -430,7 +438,7 @@ function MemberProfile({ member, onClose, attendancePeriod }: {
 }) {
     if (!member) return null;
     const sc = statusConfig[member.status];
-    const mc = membershipConfig[member.membership_type as keyof typeof membershipConfig] || membershipConfig.full;
+    const mc = getMemberTypeLabel(member);
     const [editOpen, setEditOpen] = useState(false);
 
     const getAttendanceRate = (base: number) => {
@@ -962,7 +970,7 @@ export default function Members() {
                         <tbody className="divide-y divide-border">
                             {members.data.map(member => {
                                 const sc = statusConfig[member.status] ?? statusConfig.inactive;
-                                const mc = membershipConfig[member.membership_type] ?? membershipConfig.full;
+                                const mc = getMemberTypeLabel(member);
                                 return (
                                     <tr key={member.id} className="hover:bg-muted/20 transition-base cursor-pointer group"
                                         onClick={() => setSelectedMember(member)}>
@@ -973,7 +981,10 @@ export default function Members() {
                                                 </div>
                                                 <div>
                                                     <p className="font-medium">{member.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{member.phone ?? member.email ?? 'â€”'}</p>
+                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                        <span className={cn('text-xs font-medium rounded-full px-2 py-0.5', mc.color)}>{mc.label}</span>
+                                                        <p className="text-xs text-muted-foreground">{member.phone ?? member.email ?? 'â€”'}</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>

@@ -22,12 +22,11 @@ class DepartmentController extends Controller
             $departments = Department::withoutGlobalScopes()
                 ->where('church_id', $churchId)
                 ->withCount(['members as member_count', 'members as active_count' => fn($q) => $q->where('department_member.is_active', true)])
+                ->with(['leaders'])
                 ->orderBy('name')
                 ->get();
         } else {
-            // Workers only see departments they're assigned to
             $member = Member::where('email', $user->email)->first();
-            
             if (!$member) {
                 $departments = collect();
             } else {
@@ -39,6 +38,7 @@ class DepartmentController extends Controller
                               ->where('is_active', true);
                     })
                     ->withCount(['members as member_count', 'members as active_count' => fn($q) => $q->where('department_member.is_active', true)])
+                    ->with(['leaders'])
                     ->orderBy('name')
                     ->get();
             }
@@ -50,8 +50,10 @@ class DepartmentController extends Controller
             'description'  => $d->description ?? '',
             'icon'         => $d->icon ?? 'Users',
             'color'        => $d->color ?? 'blue',
-            'leader'       => $d->leader ?? '',
-            'leader_id'    => $d->leader_id ?? null,
+            'leader'       => $d->leaders->first()
+                ? trim($d->leaders->first()->first_name . ' ' . $d->leaders->first()->last_name)
+                : ($d->leader ?? ''),
+            'leader_id'    => $d->leaders->first()?->id ?? $d->leader_id ?? null,
             'member_count' => $d->member_count,
             'active_count' => $d->active_count,
             'created_at'   => $d->created_at->toDateString(),

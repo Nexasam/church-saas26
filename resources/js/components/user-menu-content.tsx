@@ -21,7 +21,7 @@ export function UserMenuContent({ user }: Props) {
 
     const handleLogout = () => {
         cleanup();
-        router.flushAll();
+        router.post(logout());
     };
 
     return (
@@ -47,16 +47,14 @@ export function UserMenuContent({ user }: Props) {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-                <Link
-                    className="block w-full cursor-pointer"
-                    href={logout()}
-                    as="button"
+                <button
+                    className="flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-sm"
                     onClick={handleLogout}
                     data-test="logout-button"
                 >
-                    <LogOut className="mr-2" />
+                    <LogOut className="size-4" />
                     Log out
-                </Link>
+                </button>
             </DropdownMenuItem>
         </>
     );

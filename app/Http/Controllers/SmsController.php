@@ -13,12 +13,12 @@ use Inertia\Inertia;
 
 class SmsController extends Controller
 {
-    /** Plan limits: monthly SMS units */
     private const PLAN_LIMITS = [
-        'starter'    => 300,
-        'growth'     => 500,
-        'enterprise' => 1000,
-        'free'       => 50,
+        'starter'    => 1000,
+        'growth'     => 5000,
+        'enterprise' => 50000,
+        'free'       => 10000,  // bumped for testing
+        'paid'       => 10000,
     ];
 
     /** Recipient group definitions */
@@ -33,16 +33,15 @@ class SmsController extends Controller
 
     public function index()
     {
-        $churchId  = auth()->user()->church_id;
-        $church    = auth()->user()->church;
-        $plan      = $church?->payment_category ?? 'growth';
-        $limit     = self::PLAN_LIMITS[$plan] ?? 500;
+        $churchId = auth()->user()->church_id;
+        $church   = auth()->user()->church;
+        $plan     = $church?->payment_category ?? 'free';
+        $limit    = self::PLAN_LIMITS[$plan] ?? 50;
 
-        $now       = now();
         $usedThisMonth = SmsCampaign::withoutGlobalScopes()
             ->where('church_id', $churchId)
-            ->whereYear('created_at', $now->year)
-            ->whereMonth('created_at', $now->month)
+            ->whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
             ->sum('sms_units_used');
 
         $history = SmsCampaign::withoutGlobalScopes()
@@ -51,31 +50,46 @@ class SmsController extends Controller
             ->limit(50)
             ->get()
             ->map(fn($s) => [
-                'id'          => $s->id,
-                'title'       => $s->title,
-                'message'     => $s->message,
-                'recipients'  => $s->recipients_count,
-                'sent'        => $s->sent_count,
-                'failed'      => $s->failed_count,
-                'status'      => $s->status,
-                'date'        => $s->created_at->format('Y-m-d H:i'),
-                'type'        => $s->type,
+                'id'         => $s->id,
+                'title'      => $s->title,
+                'message'    => $s->message,
+                'recipients' => $s->recipients_count,
+                'sent'       => $s->sent_count,
+                'failed'     => $s->failed_count,
+                'status'     => $s->status,
+                'date'       => $s->created_at->format('Y-m-d H:i'),
+                'type'       => $s->type,
             ]);
 
-        // Recipient group counts (real from DB)
-        $memberCount  = Member::whereHas('churches', fn($q) => $q->where('churches.id', $churchId))->count();
-        $activeCount  = Member::whereHas('churches', fn($q) => $q->where('churches.id', $churchId)->where('church_member.is_active', true))->count();
+        $memberCount = Member::whereHas('churches', fn($q) => $q->where('churches.id', $churchId))->count();
+        $activeCount = Member::whereHas('churches', fn($q) => $q->where('churches.id', $churchId)->where('church_member.is_active', true))->count();
+        $workerCount = Member::whereHas('churches', fn($q) => $q->where('churches.id', $churchId))
+            ->whereHas('departments', fn($q) => $q->where('departments.church_id', $churchId))
+            ->count();
 
         $recipientGroups = [
-            ['id' => 'all',        'label' => 'All Members',         'count' => $memberCount],
-            ['id' => 'active',     'label' => 'Active Members',      'count' => $activeCount],
-            ['id' => 'followup',   'label' => 'Follow-Up List',      'count' => 0], // filled by follow-ups table later
-            ['id' => 'evangelism', 'label' => 'Evangelism Dept',     'count' => 0],
-            ['id' => 'workers',    'label' => 'All Workers',         'count' => $activeCount],
-            ['id' => 'homeChurch', 'label' => 'Home Church Leaders', 'count' => 0],
+            ['id' => 'all',     'label' => 'All Members',    'count' => $memberCount, 'group_type' => 'all'],
+            ['id' => 'active',  'label' => 'Active Members', 'count' => $activeCount, 'group_type' => 'active'],
+            ['id' => 'workers', 'label' => 'All Workers',    'count' => $workerCount, 'group_type' => 'workers'],
         ];
 
-        // Members for individual search
+        // Departments list for targeting
+        $departments = \App\Models\Department::withoutGlobalScopes()
+            ->where('church_id', $churchId)
+            ->with(['leaders'])
+            ->withCount('members')
+            ->orderBy('name')
+            ->get()
+            ->map(fn($d) => [
+                'id'           => $d->id,
+                'name'         => $d->name,
+                'member_count' => $d->members_count,
+                'leader_name'  => $d->leaders->first()
+                    ? trim($d->leaders->first()->first_name . ' ' . $d->leaders->first()->last_name)
+                    : null,
+                'leader_id'    => $d->leaders->first()?->id,
+            ]);
+
         $members = Member::whereHas('churches', fn($q) => $q->where('churches.id', $churchId))
             ->orderBy('first_name')
             ->get(['id', 'first_name', 'last_name', 'phone'])
@@ -87,12 +101,13 @@ class SmsController extends Controller
             ]);
 
         return Inertia::render('sms', [
-            'plan'             => $plan,
-            'smsLimit'         => $limit,
-            'smsUsed'          => (int) $usedThisMonth,
-            'history'          => $history,
-            'recipientGroups'  => $recipientGroups,
-            'members'          => $members,
+            'plan'            => $plan,
+            'smsLimit'        => $limit,
+            'smsUsed'         => (int) $usedThisMonth,
+            'history'         => $history,
+            'recipientGroups' => $recipientGroups,
+            'departments'     => $departments,
+            'members'         => $members,
         ]);
     }
 
@@ -102,7 +117,7 @@ class SmsController extends Controller
         $validated = $request->validate([
             'title'           => ['required', 'string', 'max:200'],
             'message'         => ['required', 'string', 'max:480'],
-            'recipient_group' => ['required', 'string', 'max:50'],
+            'recipient_group' => ['required', 'string', 'max:100'],
             'recipients_count'=> ['required', 'integer', 'min:1'],
             'sms_units'       => ['required', 'integer', 'min:1'],
         ]);
@@ -147,8 +162,11 @@ class SmsController extends Controller
             'sent_at'      => now(),
         ]);
 
-        // Notify sender about delivery status
+        // Notify sender
         auth()->user()->notify(new SmsDeliveryNotification($campaign));
+
+        // Notify recipient workers via database notification
+        $this->notifyRecipientWorkers($campaign, $validated['recipient_group'], $churchId);
 
         return back()->with('success', "Campaign \"{$validated['title']}\" sent to {$sent} members.");
     }
@@ -192,12 +210,66 @@ class SmsController extends Controller
 
     // ── Private helpers ────────────────────────────────────────────────────
 
+    private function notifyRecipientWorkers(SmsCampaign $campaign, string $group, int $churchId): void
+    {
+        // Find users to notify based on group
+        $userQuery = \App\Models\User::withoutGlobalScopes()->where('church_id', $churchId);
+
+        if (str_starts_with($group, 'dept:')) {
+            $deptId = (int) substr($group, 5);
+            $label  = 'Department message';
+            // Users whose member email matches someone in this department
+            $emails = Member::whereHas('departments', fn($q) => $q->where('departments.id', $deptId))
+                ->whereNotNull('email')->pluck('email');
+            $userQuery->whereIn('email', $emails);
+        } elseif (str_starts_with($group, 'leader:')) {
+            $deptId = (int) substr($group, 7);
+            $label  = 'Message to department leader';
+            $emails = Member::whereHas('departments', fn($q) =>
+                $q->where('departments.id', $deptId)->where('department_member.role', 'leader')
+            )->whereNotNull('email')->pluck('email');
+            $userQuery->whereIn('email', $emails);
+        } elseif ($group === 'workers') {
+            $label = 'Message to all workers';
+            $emails = Member::whereHas('churches', fn($q) => $q->where('churches.id', $churchId))
+                ->whereHas('departments')->whereNotNull('email')->pluck('email');
+            $userQuery->whereIn('email', $emails);
+        } else {
+            // all / active — notify all users in the church except the sender
+            $label = 'Church-wide message';
+            $userQuery->where('id', '!=', auth()->id());
+        }
+
+        $notification = new \App\Notifications\WorkerSmsNotification($campaign, $label);
+
+        $userQuery->where('id', '!=', auth()->id())
+            ->get()
+            ->each(fn ($u) => $u->notify($notification));
+    }
+
     private function getPhonesForGroup(string $group, int $churchId): array
     {
+        // Department all workers: dept:123
+        if (str_starts_with($group, 'dept:')) {
+            $deptId = (int) substr($group, 5);
+            return Member::whereHas('departments', fn($q) => $q->where('departments.id', $deptId))
+                ->whereNotNull('phone')->pluck('phone')->toArray();
+        }
+
+        // Department leader only: leader:123
+        if (str_starts_with($group, 'leader:')) {
+            $deptId = (int) substr($group, 7);
+            return Member::whereHas('departments', fn($q) =>
+                $q->where('departments.id', $deptId)->where('department_member.role', 'leader')
+            )->whereNotNull('phone')->pluck('phone')->toArray();
+        }
+
         $query = Member::whereHas('churches', fn($q) => $q->where('churches.id', $churchId));
 
         if ($group === 'active') {
             $query->whereHas('churches', fn($q) => $q->where('churches.id', $churchId)->where('church_member.is_active', true));
+        } elseif ($group === 'workers') {
+            $query->whereHas('departments', fn($q) => $q->where('departments.church_id', $churchId));
         }
 
         return $query->whereNotNull('phone')->pluck('phone')->toArray();
