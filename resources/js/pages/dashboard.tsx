@@ -104,7 +104,7 @@ export default function Dashboard() {
                             </Link>
                         </Button>
                         <Button size="sm" variant="secondary" className="h-8 gap-1.5 bg-white/15 text-white border-white/20 hover:bg-white/25" asChild>
-                            <Link href="/members/new">
+                            <Link href="/members?create=1">
                                 <Users className="size-3.5" />
                                 Add Member
                             </Link>

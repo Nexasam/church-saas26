@@ -90,7 +90,7 @@ class OnboardingController extends Controller
     public function saveTheme(Request $request)
     {
         $validated = $request->validate([
-            'theme_color' => ['required', 'in:blue,purple,emerald'],
+            'theme_color' => ['required', 'in:blue,purple,emerald,rose,amber,slate'],
         ]);
 
         Church::find(auth()->user()->church_id)->update($validated);

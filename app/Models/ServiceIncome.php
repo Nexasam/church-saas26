@@ -27,4 +27,14 @@ class ServiceIncome extends Model
             }
         });
     }
+
+    public function reconciledBy()
+    {
+        return $this->belongsTo(User::class, 'reconciled_by');
+    }
+
+    public function attachments()
+    {
+        return $this->morphMany(FinanceAttachment::class, 'attachable');
+    }
 }

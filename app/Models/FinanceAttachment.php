@@ -4,12 +4,12 @@ namespace App\Models;
 
 use App\Scopes\ChurchScope;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
-class Expense extends Model
+class FinanceAttachment extends Model
 {
     protected $guarded = [];
-
-    protected $casts = ['expense_date' => 'date'];
 
     protected static function booted(): void
     {
@@ -21,10 +21,18 @@ class Expense extends Model
         });
     }
 
-    public function category() { return $this->belongsTo(ExpenseCategory::class, 'expense_category_id'); }
-
-    public function attachments()
+    public function church(): BelongsTo
     {
-        return $this->morphMany(FinanceAttachment::class, 'attachable');
+        return $this->belongsTo(Church::class);
+    }
+
+    public function uploadedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function attachable(): MorphTo
+    {
+        return $this->morphTo();
     }
 }

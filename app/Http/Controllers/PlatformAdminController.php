@@ -164,7 +164,7 @@ class PlatformAdminController extends Controller
     public function updateChurchTheme(Request $request, Church $church)
     {
         $request->validate([
-            'theme_color' => ['required', 'in:blue,purple,emerald'],
+            'theme_color' => ['required', 'in:blue,purple,emerald,rose,amber,slate'],
         ]);
         $church->update(['theme_color' => $request->theme_color]);
         return back()->with('success', "{$church->name} theme updated.");

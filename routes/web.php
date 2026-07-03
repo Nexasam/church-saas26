@@ -168,6 +168,14 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('worker/department/{department}/member/{member}', [\App\Http\Controllers\WorkerController::class, 'removeMember'])->name('worker.member.remove');
     Route::post('worker/department/{department}/members', [\App\Http\Controllers\WorkerController::class, 'addMember'])->name('worker.member.add');
     Route::post('worker/department/{department}/attendance', [\App\Http\Controllers\WorkerController::class, 'markAttendance'])->name('worker.attendance.mark');
+
+    // Finance Portal
+    Route::get('finance-portal', [\App\Http\Controllers\FinancePortalController::class, 'index'])->name('finance-portal.index');
+
+    // Finance Attachments
+    Route::post('finance/attachments', [\App\Http\Controllers\Finance\AttachmentController::class, 'store'])->name('finance.attachments.store');
+    Route::delete('finance/attachments/{attachment}', [\App\Http\Controllers\Finance\AttachmentController::class, 'destroy'])->name('finance.attachments.destroy');
+    Route::get('finance/attachments/{attachment}', [\App\Http\Controllers\Finance\AttachmentController::class, 'show'])->name('finance.attachments.show');
 });
 
 require __DIR__.'/settings.php';

@@ -39,11 +39,11 @@ import { dashboard } from '@/routes';
 import type { User } from '@/types';
 
 const quickActions = [
-    { label: 'Add Member', href: '/members/create', icon: Users },
-    { label: 'Record Follow-Up', href: '/followups/create', icon: UserSearch },
-    { label: 'Log Finance Entry', href: '/finance/create', icon: CreditCard },
+    { label: 'Add Member', href: '/members?create=1', icon: Users },
+    { label: 'Record Follow-Up', href: '/followups', icon: UserSearch },
+    { label: 'Log Finance Entry', href: '/finance', icon: CreditCard },
     { label: 'Log Members Reached', href: '/evangelism', icon: TrendingUp },
-    { label: 'Open Care Case', href: '/care/create', icon: HeartHandshake },
+    { label: 'Open Care Case', href: '/care', icon: HeartHandshake },
 ];
 
 export function AppTopBar() {

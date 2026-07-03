@@ -46,18 +46,20 @@ class FinanceController extends Controller
 
         $incomeQuery = Income::withoutGlobalScopes()
             ->where('church_id', $churchId)
-            ->with('category')
+            ->with('category', 'attachments')
             ->when($search, fn($q) => $q->where(fn($q2) => $q2->where('note', 'like', "%{$search}%")->orWhereHas('category', fn($q3) => $q3->where('name', 'like', "%{$search}%"))))
             ->orderByDesc('income_date');
 
         $expenseQuery = Expense::withoutGlobalScopes()
             ->where('church_id', $churchId)
-            ->with('category')
+            ->with('category', 'attachments')
             ->when($search, fn($q) => $q->where(fn($q2) => $q2->where('note', 'like', "%{$search}%")->orWhereHas('category', fn($q3) => $q3->where('name', 'like', "%{$search}%"))))
             ->orderByDesc('expense_date');
 
         $incomes  = $typeFilter !== 'expense' ? $incomeQuery->limit(100)->get() : collect();
         $expenses = $typeFilter !== 'income'  ? $expenseQuery->limit(100)->get() : collect();
+
+        $allowedMethods = ['cash', 'transfer', 'pos', 'cheque', 'bank', 'offering', 'online'];
 
         $transactions = $incomes->map(fn($i) => [
             'id'          => 'inc-' . $i->id,
@@ -66,9 +68,19 @@ class FinanceController extends Controller
             'category'    => $i->category?->name ?? '—',
             'type'        => 'income',
             'amount'      => (float) $i->amount,
-            'method'      => $i->source ?? 'cash',
+            'method'      => in_array($i->source, $allowedMethods) ? $i->source : 'cash',
             'status'      => 'confirmed',
             'recorded_by' => '—',
+            'attachments' => $i->attachments->map(fn($a) => [
+                'id'            => $a->id,
+                'filename'      => $a->filename,
+                'original_name' => $a->original_name,
+                'mime_type'     => $a->mime_type,
+                'size'          => $a->size,
+                'url'           => \Illuminate\Support\Facades\Storage::url($a->path),
+                'note'          => $a->note,
+                'uploaded_by_name' => $a->uploadedBy?->name,
+            ])->values()->all(),
         ])->concat($expenses->map(fn($e) => [
             'id'          => 'exp-' . $e->id,
             'date'        => $e->expense_date->toDateString(),
@@ -79,11 +91,22 @@ class FinanceController extends Controller
             'method'      => 'cash',
             'status'      => 'confirmed',
             'recorded_by' => '—',
+            'attachments' => $e->attachments->map(fn($a) => [
+                'id'            => $a->id,
+                'filename'      => $a->filename,
+                'original_name' => $a->original_name,
+                'mime_type'     => $a->mime_type,
+                'size'          => $a->size,
+                'url'           => \Illuminate\Support\Facades\Storage::url($a->path),
+                'note'          => $a->note,
+                'uploaded_by_name' => $a->uploadedBy?->name,
+            ])->values()->all(),
         ]))->sortByDesc('date')->values();
 
         // ── Service Offerings ──────────────────────────────────────────────
         $serviceOfferings = ServiceIncome::withoutGlobalScopes()
             ->where('church_id', $churchId)
+            ->with('reconciledBy:id,name')
             ->orderByDesc('service_date')
             ->limit(20)
             ->get()
@@ -97,6 +120,7 @@ class FinanceController extends Controller
                 'reconciliation_status' => $s->reconciliation_status ?? 'pending',
                 'variance'              => $s->variance ? (float)$s->variance : null,
                 'reconciliation_note'   => $s->reconciliation_note,
+                'reconciled_by'         => $s->reconciledBy?->name ?? null,
             ]);
 
         // ── Income + expense categories ────────────────────────────────────
@@ -178,7 +202,11 @@ class FinanceController extends Controller
                 ->first();
 
             foreach ($validated['sections'] as $section) {
-                $total = array_sum(array_values($section['amounts'] ?? []));
+                $amounts = $section['amounts'] ?? [];
+                // Only sum the 4 payment method keys — ignore cashDenoms, showDenoms etc.
+                $total = collect(['cash', 'transfer', 'pos', 'cheque'])
+                    ->sum(fn($key) => (float) ($amounts[$key] ?? 0));
+
                 if ($total > 0) {
                     Income::create([
                         'income_category_id' => $cat?->id ?? null,
@@ -201,10 +229,16 @@ class FinanceController extends Controller
             'banked_amount'        => ['required', 'numeric', 'min:0'],
             'banked_date'          => ['required', 'date'],
             'reconciliation_note'  => ['nullable', 'string', 'max:500'],
+            'force_match'          => ['nullable', 'boolean'],
         ]);
 
         $variance = $validated['banked_amount'] - $serviceIncome->recorded_amount;
-        $status   = abs($variance) < 0.01 ? 'matched' : (abs($variance) > 5000 ? 'investigating' : 'variance');
+
+        if ($request->boolean('force_match')) {
+            $status = 'matched';
+        } else {
+            $status = abs($variance) < 0.01 ? 'matched' : (abs($variance) > 5000 ? 'investigating' : 'variance');
+        }
 
         $serviceIncome->update([
             'banked_amount'          => $validated['banked_amount'],
@@ -212,7 +246,7 @@ class FinanceController extends Controller
             'reconciliation_status'  => $status,
             'variance'               => $variance,
             'reconciliation_note'    => $validated['reconciliation_note'] ?? null,
-            'reconciled_by'          => auth()->user()->name,
+            'reconciled_by'          => auth()->id(),
             'reconciled_at'          => now(),
         ]);
 

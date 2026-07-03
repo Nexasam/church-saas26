@@ -14,22 +14,63 @@ class EnsureWorkerAccess
      * This middleware ensures that workers (non-admin users) can only access
      * worker-specific routes and are redirected to the worker dashboard if they
      * try to access other pages.
+     *
+     * Finance officers (role slug: 'finance') can access finance-related routes
+     * and are redirected to the finance portal for everything else.
      */
     public function handle(Request $request, Closure $next): Response
     {
         $user = auth()->user();
-        
+
         // If user is not authenticated, let them proceed (auth middleware will handle)
         if (!$user) {
             return $next($request);
         }
-        
-        // Allow super admins and non-member roles to access all routes
-        if ($user->is_super_admin || ($user->role && $user->role->slug !== 'member')) {
+
+        // Allow super admins and non-restricted roles to access all routes
+        if ($user->is_super_admin || ($user->role && !in_array($user->role->slug, ['member', 'finance']))) {
             return $next($request);
         }
 
-        // Workers can only access worker-specific routes
+        $currentRoute = $request->route()?->getName();
+        $roleSlug     = $user->role?->slug;
+
+        // ── Finance Officer ──────────────────────────────────────────────
+        if ($roleSlug === 'finance') {
+            $financeAllowed = [
+                'finance-portal.index',
+                'finance.index',
+                'finance.income.store',
+                'finance.expense.store',
+                'finance.service.store',
+                'finance.service.reconcile',
+                'finance.income.destroy',
+                'finance.expense.destroy',
+                'finance.export',
+                'finance.attachments.store',
+                'finance.attachments.destroy',
+                'finance.attachments.show',
+                'notifications.index',
+                'notifications.read',
+                'notifications.read-all',
+                'notifications.destroy',
+                'notifications.preferences',
+                'notifications.update-preferences',
+                'settings.profile',
+                'settings.profile.update',
+                'settings.password.update',
+                'settings.appearance',
+                'settings.delete-account',
+            ];
+
+            if (!in_array($currentRoute, $financeAllowed)) {
+                return redirect()->route('finance-portal.index');
+            }
+
+            return $next($request);
+        }
+
+        // ── Regular Workers (member role) ────────────────────────────────
         $allowedRoutes = [
             'dashboard',
             'worker.dashboard',
@@ -43,8 +84,6 @@ class EnsureWorkerAccess
             'notifications.preferences',
             'notifications.update-preferences',
         ];
-
-        $currentRoute = $request->route()?->getName();
 
         if (!in_array($currentRoute, $allowedRoutes)) {
             return redirect()->route('worker.dashboard');

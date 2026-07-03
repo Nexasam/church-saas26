@@ -16,7 +16,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -882,6 +882,22 @@ export default function Members() {
     const [attendancePeriod, setAttendancePeriod] = useState<'monthly' | 'quarterly'>('monthly');
     const [importOpen,       setImportOpen]       = useState(false);
     const [addOpen,          setAddOpen]          = useState(false);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+
+        if (params.get('create') === '1') {
+            setAddOpen(true);
+            params.delete('create');
+
+            const query = params.toString();
+            window.history.replaceState(
+                {},
+                '',
+                `${window.location.pathname}${query ? `?${query}` : ''}`,
+            );
+        }
+    }, []);
 
     // Server-side search/filter via Inertia
     function applyFilter(params: Record<string, string>) {

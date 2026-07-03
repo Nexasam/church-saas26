@@ -22,4 +22,9 @@ class Income extends Model
     }
 
     public function category() { return $this->belongsTo(IncomeCategory::class, 'income_category_id'); }
+
+    public function attachments()
+    {
+        return $this->morphMany(FinanceAttachment::class, 'attachable');
+    }
 }

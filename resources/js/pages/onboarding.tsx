@@ -36,7 +36,7 @@ type ChurchData = {
     city: string;
     country: string;
     size: 'small' | 'medium' | 'large' | 'mega';
-    theme_color: 'blue' | 'purple' | 'emerald';
+    theme_color: 'blue' | 'purple' | 'emerald' | 'rose' | 'amber' | 'slate';
 };
 
 type PageProps = {
@@ -84,6 +84,30 @@ const THEME_OPTIONS = [
         primary: 'bg-emerald-600',
         ring: 'ring-emerald-500',
         preview: ['bg-emerald-600', 'bg-emerald-100', 'bg-emerald-50'],
+    },
+    {
+        value: 'rose',
+        label: 'Passion Red',
+        desc: 'Warm and passionate',
+        primary: 'bg-rose-600',
+        ring: 'ring-rose-500',
+        preview: ['bg-rose-600', 'bg-rose-100', 'bg-rose-50'],
+    },
+    {
+        value: 'amber',
+        label: 'Golden Glory',
+        desc: 'Rich and radiant',
+        primary: 'bg-amber-500',
+        ring: 'ring-amber-400',
+        preview: ['bg-amber-500', 'bg-amber-100', 'bg-amber-50'],
+    },
+    {
+        value: 'slate',
+        label: 'Deep Navy',
+        desc: 'Elegant and trustworthy',
+        primary: 'bg-slate-700',
+        ring: 'ring-slate-600',
+        preview: ['bg-slate-700', 'bg-slate-200', 'bg-slate-100'],
     },
 ];
 
@@ -428,7 +452,7 @@ function StepTheme({ church, onNext, onBack, onSkip }: {
 
     return (
         <form onSubmit={submit} className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {THEME_OPTIONS.map(theme => {
                     const selected = data.theme_color === theme.value;
                     return (
