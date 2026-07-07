@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\SanitizesCsv;
 use App\Models\Department;
 use App\Models\Member;
 use App\Models\ServiceAttendance;
@@ -11,6 +12,7 @@ use Inertia\Inertia;
 
 class AttendanceController extends Controller
 {
+    use SanitizesCsv;
     /**
      * Show the attendance page.
      */
@@ -194,10 +196,10 @@ class AttendanceController extends Controller
                 if ($status === 'present') $present++;
             }
             $row[] = count($dates) > 0 ? round(($present / count($dates)) * 100) . '%' : '—';
-            $rows[] = $row;
+            $rows[] = $this->sanitizeCsvRow($row);
         }
 
-        $csv      = implode("\n", array_map(fn ($r) => implode(',', array_map(fn ($c) => '"' . str_replace('"', '""', $c) . '"', $r)), $rows));
+        $csv      = implode("\n", array_map(fn ($r) => $this->rowToCsv($r), $rows));
         $filename = "attendance_{$year}_{$month}_{$serviceType}.csv";
 
         return response($csv, 200, [

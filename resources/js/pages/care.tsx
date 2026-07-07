@@ -12,8 +12,14 @@ import {
     Users,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -21,6 +27,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Sheet,
     SheetContent,
@@ -55,11 +62,36 @@ const priorityConfig: Record<CareCase['priority'], { label: string; dot: string 
 };
 
 function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onClose: () => void }) {
+    const [noteText, setNoteText] = useState('');
+    const [saving, setSaving] = useState(false);
+
     if (!careCase) return null;
     const tc = typeConfig[careCase.type];
     const sc = statusConfig[careCase.status];
     const pc = priorityConfig[careCase.priority];
     const TypeIcon = tc.icon;
+
+    function saveNote() {
+        if (!noteText.trim()) return;
+        setSaving(true);
+        router.post(`/care/${careCase.id}/notes`, { note: noteText }, {
+            onSuccess: () => { setNoteText(''); setSaving(false); },
+            onError:   () => setSaving(false),
+        });
+    }
+
+    function toggleResolved() {
+        const newStatus = careCase.status === 'resolved' ? 'open' : 'resolved';
+        router.patch(`/care/${careCase.id}`, { status: newStatus }, {
+            onSuccess: () => onClose(),
+        });
+    }
+
+    function escalate() {
+        router.patch(`/care/${careCase.id}`, { status: 'escalated', priority: 'urgent' }, {
+            onSuccess: () => onClose(),
+        });
+    }
 
     return (
         <Sheet open={!!careCase} onOpenChange={(o) => !o && onClose()}>
@@ -125,21 +157,36 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
                     <div className="px-5 py-4">
                         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Add Note</h4>
                         <textarea
+                            value={noteText}
+                            onChange={e => setNoteText(e.target.value)}
                             className="w-full rounded-lg border border-border bg-muted/50 text-sm p-3 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
                             rows={3}
                             placeholder="Add a progress note..."
                         />
-                        <Button className="w-full mt-2" size="sm" onClick={() => { const ta = document.querySelector(`textarea`) as HTMLTextAreaElement; if (!ta?.value) return; router.post(`/care/${careCase.id}/notes`, { note: ta.value }, { onSuccess: () => { ta.value = ""; } }); }}>Save Note</Button>
+                        <Button className="w-full mt-2" size="sm" disabled={!noteText.trim() || saving} onClick={saveNote}>
+                            {saving ? 'Saving…' : 'Save Note'}
+                        </Button>
                     </div>
                 </div>
 
                 {/* Actions */}
                 <div className="border-t border-border p-4 flex gap-2">
-                    <Button className="flex-1 gap-1.5" size="sm" variant={careCase.status === "resolved" ? "outline" : "default"} onClick={() => router.patch(`/care/${careCase.id}`, { status: careCase.status === "resolved" ? "open" : "resolved" })}>
+                    <Button
+                        className="flex-1 gap-1.5"
+                        size="sm"
+                        variant={careCase.status === 'resolved' ? 'outline' : 'default'}
+                        onClick={toggleResolved}
+                    >
                         <CheckCircle2 className="size-3.5" />
                         {careCase.status === 'resolved' ? 'Reopen' : 'Mark Resolved'}
                     </Button>
-                    <Button variant="outline" className="flex-1 gap-1.5" size="sm">
+                    <Button
+                        variant="outline"
+                        className="flex-1 gap-1.5 border-red-300 text-red-600 hover:bg-red-50"
+                        size="sm"
+                        disabled={careCase.status === 'escalated'}
+                        onClick={escalate}
+                    >
                         Escalate
                     </Button>
                 </div>
@@ -150,11 +197,16 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
 
 export default function Care() {
     type CarePageProps = { cases: CareCase[]; stats: { open: number; in_progress: number; urgent: number }; members: any[]; admins: any[]; filters: any };
-    const { cases, stats } = usePage<CarePageProps>().props;
+    const { cases, stats, admins } = usePage<CarePageProps>().props;
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | CareCase['status']>('all');
     const [selectedCase, setSelectedCase] = useState<CareCase | null>(null);
+    const [newCaseOpen, setNewCaseOpen] = useState(false);
+    const [form, setForm] = useState({
+        member_name: '', type: 'general' as CareCase['type'],
+        title: '', description: '', priority: 'medium' as CareCase['priority'], assigned_to: '',
+    });
 
     const filtered = cases.filter((c) => {
         const matchSearch = c.member_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -165,6 +217,27 @@ export default function Care() {
 
     const openCount   = stats?.open ?? 0;
     const urgentCount = stats?.urgent ?? 0;
+
+    function submitNewCase() {
+        if (!form.member_name || !form.title) {
+            toast.error('Member name and title are required.');
+            return;
+        }
+        router.post('/love/care', {
+            member_name:  form.member_name,
+            type:         form.type,
+            title:        form.title,
+            description:  form.description,
+            priority:     form.priority,
+            assigned_to:  form.assigned_to || null,
+        }, {
+            onSuccess: () => {
+                setForm({ member_name: '', type: 'general', title: '', description: '', priority: 'medium', assigned_to: '' });
+                setNewCaseOpen(false);
+                toast.success('Care case created.');
+            },
+        });
+    }
 
     return (
         <>
@@ -197,6 +270,14 @@ export default function Care() {
                             </button>
                         ))}
                     </div>
+                    {urgentCount > 0 && (
+                        <span className="text-xs font-medium rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2.5 py-1">
+                            {urgentCount} urgent
+                        </span>
+                    )}
+                    <Button size="sm" className="h-8 gap-1.5 ml-auto" onClick={() => setNewCaseOpen(true)}>
+                        <Plus className="size-3.5" />New Case
+                    </Button>
                 </div>
 
                 {/* Cases Grid */}

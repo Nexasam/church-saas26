@@ -5,7 +5,7 @@ import { router } from '@inertiajs/react'
 interface Notification {
   id: string
   type: string
-  data: Record<string, any>
+  data: Record<string, unknown>
   read_at: string | null
   created_at: string
 }
@@ -26,11 +26,9 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
   const fetchNotifications = async () => {
     try {
       const response = await fetch('/notifications')
-      const data = await response.json()
+      const data = await response.json() as { notifications: Notification[]; unread_count: number }
       setNotifications(data.notifications)
       setUnreadCount(data.unread_count)
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error)
     } finally {
       setLoading(false)
     }
@@ -43,8 +41,8 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
         prev.map(n => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
       )
       setUnreadCount(prev => Math.max(0, prev - 1))
-    } catch (error) {
-      console.error('Failed to mark as read:', error)
+    } catch {
+      // ignore
     }
   }
 
@@ -55,24 +53,25 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
         prev.map(n => ({ ...n, read_at: new Date().toISOString() }))
       )
       setUnreadCount(0)
-    } catch (error) {
-      console.error('Failed to mark all as read:', error)
+    } catch {
+      // ignore
     }
   }
 
   const deleteNotification = async (id: string) => {
+    const deleted = notifications.find(n => n.id === id)
     try {
       await fetch(`/notifications/${id}`, { method: 'DELETE' })
       setNotifications(prev => prev.filter(n => n.id !== id))
-      if (!notifications.find(n => n.id === id)?.read_at) {
+      if (deleted && !deleted.read_at) {
         setUnreadCount(prev => Math.max(0, prev - 1))
       }
-    } catch (error) {
-      console.error('Failed to delete notification:', error)
+    } catch {
+      // ignore
     }
   }
 
-  const getNotificationIcon = (type: string, data?: Record<string, any>) => {
+  const getNotificationIcon = (type: string, data?: Record<string, unknown>) => {
     if (type.includes('WorkerSms') || data?.type === 'worker_sms') return '💬'
     if (type.includes('CareCase')) return '🏥'
     if (type.includes('FollowUp')) return '📞'
@@ -84,26 +83,17 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
 
   const getNotificationMessage = (notification: Notification) => {
     const { type, data } = notification
-    if (data?.type === 'worker_sms') {
-      return `📨 ${data.title}: "${data.message?.slice(0, 80)}${data.message?.length > 80 ? '...' : ''}"`
+    if (data?.type === 'worker_sms' || type.includes('WorkerSms')) {
+      const msg = (data.message as string) ?? ''
+      return `${data.title as string}: "${msg.slice(0, 80)}${msg.length > 80 ? '...' : ''}"`
     }
-    if (type.includes('CareCase')) {
-      return `New care case assigned: ${data.member_name}`
-    }
-    if (type.includes('FollowUp')) {
-      return data.task_id
-        ? `Follow-up task due: ${data.name}`
-        : `Follow-up reminder: ${data.name}`
-    }
-    if (type.includes('Celebration')) {
-      return `Celebration: ${data.member_name} - ${data.category}`
-    }
-    if (type.includes('Sms')) {
-      return `SMS campaign "${data.title}" sent to ${data.sent_count} recipients`
-    }
-    if (type.includes('Invitation')) {
-      return 'You have been invited to join as an admin'
-    }
+    if (type.includes('CareCase')) return `New care case assigned: ${data.member_name as string}`
+    if (type.includes('FollowUp')) return data.task_id
+      ? `Follow-up task due: ${data.name as string}`
+      : `Follow-up reminder: ${data.name as string}`
+    if (type.includes('Celebration')) return `Celebration: ${data.member_name as string} - ${data.category as string}`
+    if (type.includes('Sms')) return `SMS campaign "${data.title as string}" sent to ${data.sent_count as number} recipients`
+    if (type.includes('Invitation')) return 'You have been invited to join as an admin'
     return 'New notification'
   }
 

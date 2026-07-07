@@ -276,43 +276,153 @@ class SmsController extends Controller
     }
 
     /**
-     * Dispatch SMS via Termii (or mock if no key configured).
+     * Dispatch SMS via configured provider (Termii or Twilio).
+     * In local/testing env simulates success unless a real key is present.
      * Returns [sent_count, failed_count].
      */
     private function dispatchSms(array $phones, string $message, string $senderName): array
     {
-        $apiKey  = config('services.termii.key');
-        $senderId = config('services.termii.sender_id', 'N-Alert');
+        $provider = config('services.sms.provider', 'termii');
 
-        if (! $apiKey || app()->environment('local', 'testing')) {
-            // In development, simulate success
+        // Normalize phones — remove spaces and ensure international format
+        $phones = array_values(array_filter(array_map(
+            fn($p) => $this->normalizePhone($p),
+            $phones
+        )));
+
+        if (empty($phones)) {
+            return [0, 0];
+        }
+
+        // In local/testing without keys → simulate success
+        $termiiKey  = config('services.termii.key');
+        $twilioSid  = config('services.twilio.sid');
+        $hasKey     = $provider === 'termii' ? ! empty($termiiKey) : ! empty($twilioSid);
+
+        if (! $hasKey) {
+            \Log::info("[SMS MOCK] No API key configured. Would send to " . count($phones) . " recipients via {$provider}", [
+                'message' => $message,
+                'phones'  => array_slice($phones, 0, 5),
+            ]);
             return [count($phones), 0];
         }
 
-        $sent   = 0;
-        $failed = 0;
+        return $provider === 'twilio'
+            ? $this->dispatchViaTwilio($phones, $message)
+            : $this->dispatchViaTermii($phones, $message);
+    }
 
-        foreach (array_chunk($phones, 50) as $batch) {
+    /**
+     * Send via Termii bulk SMS API.
+     */
+    private function dispatchViaTermii(array $phones, string $message): array
+    {
+        $apiKey   = config('services.termii.key');
+        $senderId = config('services.termii.sender_id', 'N-Alert');
+        $channel  = config('services.termii.channel', 'generic');
+
+        $sent = $failed = 0;
+
+        foreach (array_chunk($phones, 100) as $batch) {
             try {
-                $response = Http::post('https://api.ng.termii.com/api/sms/send/bulk', [
-                    'api_key'  => $apiKey,
-                    'to'       => $batch,
-                    'from'     => $senderId,
-                    'sms'      => $message,
-                    'type'     => 'plain',
-                    'channel'  => 'dnd',
+                $response = Http::timeout(30)->post('https://api.ng.termii.com/api/sms/send/bulk', [
+                    'api_key'    => $apiKey,
+                    'to'         => $batch,
+                    'from'       => $senderId,
+                    'sms'        => $message,
+                    'type'       => 'plain',
+                    'channel'    => $channel,
                 ]);
 
                 if ($response->successful()) {
-                    $sent += count($batch);
+                    $data = $response->json();
+                    // Termii returns message_id array on success
+                    $sent += is_array($data['message_id'] ?? null)
+                        ? count($data['message_id'])
+                        : count($batch);
                 } else {
+                    \Log::warning('[Termii SMS] Failed batch', [
+                        'status' => $response->status(),
+                        'body'   => $response->body(),
+                    ]);
                     $failed += count($batch);
                 }
-            } catch (\Exception) {
+            } catch (\Exception $e) {
+                \Log::error('[Termii SMS] Exception', ['error' => $e->getMessage()]);
                 $failed += count($batch);
             }
         }
 
         return [$sent, $failed];
+    }
+
+    /**
+     * Send via Twilio API (one request per recipient — Twilio has no bulk API).
+     */
+    private function dispatchViaTwilio(array $phones, string $message): array
+    {
+        $sid   = config('services.twilio.sid');
+        $token = config('services.twilio.token');
+        $from  = config('services.twilio.from');
+
+        $sent = $failed = 0;
+        $baseUrl = "https://api.twilio.com/2010-04-01/Accounts/{$sid}/Messages.json";
+
+        foreach ($phones as $phone) {
+            try {
+                $response = Http::timeout(15)
+                    ->withBasicAuth($sid, $token)
+                    ->asForm()
+                    ->post($baseUrl, [
+                        'From' => $from,
+                        'To'   => $phone,
+                        'Body' => $message,
+                    ]);
+
+                if ($response->successful() && isset($response->json()['sid'])) {
+                    $sent++;
+                } else {
+                    \Log::warning('[Twilio SMS] Failed', [
+                        'phone'  => $phone,
+                        'status' => $response->status(),
+                        'body'   => $response->body(),
+                    ]);
+                    $failed++;
+                }
+            } catch (\Exception $e) {
+                \Log::error('[Twilio SMS] Exception', ['error' => $e->getMessage(), 'phone' => $phone]);
+                $failed++;
+            }
+        }
+
+        return [$sent, $failed];
+    }
+
+    /**
+     * Normalize a phone number to international format.
+     * Nigerian numbers: 0801... → +234801...
+     */
+    private function normalizePhone(?string $phone): ?string
+    {
+        if (! $phone) return null;
+
+        // Strip all non-digit characters except leading +
+        $clean = preg_replace('/[^\d+]/', '', $phone);
+
+        // Already international
+        if (str_starts_with($clean, '+')) return $clean;
+
+        // Nigerian local format: 0XXXXXXXXXX → +234XXXXXXXXXX
+        if (preg_match('/^0[7-9][0-1]\d{8}$/', $clean)) {
+            return '+234' . substr($clean, 1);
+        }
+
+        // Already has country code without +
+        if (preg_match('/^234\d{10}$/', $clean)) {
+            return '+' . $clean;
+        }
+
+        // Return with + prefix for other formats
+        return str_starts_with($clean, '+') ? $clean : '+' . $clean;
     }
 }

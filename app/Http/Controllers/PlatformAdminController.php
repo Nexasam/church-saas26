@@ -18,6 +18,7 @@ class PlatformAdminController extends Controller
                     ->select('id', 'name', 'email', 'church_id', 'last_login_at', 'status')
                     ->limit(1),
             ])
+            ->withCount(['members as members_count'])
             ->latest()
             ->get()
             ->map(fn(Church $c) => [
@@ -29,7 +30,7 @@ class PlatformAdminController extends Controller
                 'plan'                => $c->payment_category,
                 'onboarding_complete' => (bool) $c->onboarding_complete,
                 'subscription_expiry' => $c->subscription_expiry?->toDateString(),
-                'members_count'       => 0, // will be real when members backend is wired
+                'members_count'       => $c->members_count ?? 0,
                 'theme_color'         => $c->theme_color ?? 'blue',
                 'created_at'          => $c->created_at->toDateString(),
                 'super_admin'         => $c->users->first() ? [
@@ -44,7 +45,7 @@ class PlatformAdminController extends Controller
             'total_churches'  => $churches->count(),
             'active_churches' => $churches->where('onboarding_complete', true)->count(),
             'paid_churches'   => $churches->where('plan', 'paid')->count(),
-            'total_members'   => 0,
+            'total_members'   => $churches->sum('members_count'),
         ];
 
         return Inertia::render('platform/dashboard', [

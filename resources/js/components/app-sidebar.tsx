@@ -39,11 +39,11 @@ const mainNavItems: NavItem[] = [
         href: dashboard(),
         icon: LayoutDashboard,
     },
-    {
-        title: 'Follow-Ups',
-        href: '/followups',
-        icon: UserSearch,
-    },
+    // {
+    //     title: 'Follow-Ups',
+    //     href: '/followups',
+    //     icon: UserSearch,
+    // },
     {
         title: 'Evangelism',
         href: '/evangelism',

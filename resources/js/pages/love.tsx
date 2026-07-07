@@ -129,11 +129,45 @@ const MOCK_PRAYERS = [
 // ─── Care Case Detail Sheet ───────────────────────────────────────────────────
 
 function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onClose: () => void }) {
+    const [note, setNote] = useState('');
+    
     if (!careCase) return null;
     const tc = careTypeConfig[careCase.type];
     const sc = statusConfig[careCase.status];
     const pc = priorityConfig[careCase.priority];
     const TypeIcon = tc.icon;
+
+    function handleAddNote() {
+        if (!note.trim()) {
+            toast.error('Please enter a note');
+            return;
+        }
+        router.post(`/love/care/${careCase.id}/notes`, { note }, {
+            onSuccess: () => {
+                setNote('');
+                toast.success('Note added!');
+            },
+        });
+    }
+
+    function handleToggleResolved() {
+        const newStatus = careCase.status === 'resolved' ? 'open' : 'resolved';
+        router.patch(`/love/care/${careCase.id}`, { status: newStatus }, {
+            onSuccess: () => {
+                toast.success(newStatus === 'resolved' ? 'Case resolved!' : 'Case reopened!');
+                onClose();
+            },
+        });
+    }
+
+    function handleEscalate() {
+        router.patch(`/love/care/${careCase.id}`, { status: 'escalated', priority: 'urgent' }, {
+            onSuccess: () => {
+                toast.success('Case escalated!');
+                onClose();
+            },
+        });
+    }
 
     return (
         <Sheet open={!!careCase} onOpenChange={o => !o && onClose()}>
@@ -188,16 +222,22 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
                     )}
                     <div className="px-5 py-4">
                         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Add Note</h4>
-                        <textarea className="w-full rounded-lg border border-border bg-muted/50 text-sm p-3 resize-none focus:outline-none focus:ring-1 focus:ring-ring" rows={3} placeholder="Add a progress note..." />
-                        <Button className="w-full mt-2" size="sm">Save Note</Button>
+                        <textarea 
+                            value={note} 
+                            onChange={e => setNote(e.target.value)} 
+                            className="w-full rounded-lg border border-border bg-muted/50 text-sm p-3 resize-none focus:outline-none focus:ring-1 focus:ring-ring" 
+                            rows={3} 
+                            placeholder="Add a progress note..." 
+                        />
+                        <Button className="w-full mt-2" size="sm" onClick={handleAddNote}>Save Note</Button>
                     </div>
                 </div>
                 <div className="border-t border-border p-4 flex gap-2">
-                    <Button className="flex-1 gap-1.5" size="sm">
+                    <Button className="flex-1 gap-1.5" size="sm" onClick={handleToggleResolved}>
                         <CheckCircle2 className="size-3.5" />
                         {careCase.status === 'resolved' ? 'Reopen' : 'Mark Resolved'}
                     </Button>
-                    <Button variant="outline" className="flex-1" size="sm">Escalate</Button>
+                    <Button variant="outline" className="flex-1" size="sm" onClick={handleEscalate}>Escalate</Button>
                 </div>
             </SheetContent>
         </Sheet>
@@ -207,16 +247,49 @@ function CareCaseDetail({ careCase, onClose }: { careCase: CareCase | null; onCl
 // ─── Care Tab ─────────────────────────────────────────────────────────────────
 
 function CareTab() {
-    const { cases } = usePage<any>().props;
+    const { cases, members, admins } = usePage<any>().props;
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | CareCase['status']>('all');
     const [selectedCase, setSelectedCase] = useState<CareCase | null>(null);
+    const [newCaseOpen, setNewCaseOpen] = useState(false);
+    const [form, setForm] = useState({
+        member_name: '',
+        member_id: '',
+        type: 'general' as CareCase['type'],
+        title: '',
+        description: '',
+        priority: 'medium' as CareCase['priority'],
+        assigned_to: '',
+    });
 
     const filtered = (cases ?? []).filter((c: any) => {
         const matchSearch = c.member_name.toLowerCase().includes(search.toLowerCase()) || c.title.toLowerCase().includes(search.toLowerCase());
         const matchStatus = statusFilter === 'all' || c.status === statusFilter;
         return matchSearch && matchStatus;
     });
+
+    function handleSubmit() {
+        if (!form.member_name || !form.title || !form.type || !form.priority) {
+            toast.error('Please fill required fields');
+            return;
+        }
+
+        router.post('/love/care', {
+            member_name: form.member_name,
+            member_id: form.member_id || null,
+            type: form.type,
+            title: form.title,
+            description: form.description,
+            priority: form.priority,
+            assigned_to: form.assigned_to || null,
+        }, {
+            onSuccess: () => {
+                setForm({ member_name: '', member_id: '', type: 'general', title: '', description: '', priority: 'medium', assigned_to: '' });
+                setNewCaseOpen(false);
+                toast.success('Care case created!');
+            },
+        });
+    }
 
     return (
         <>
@@ -233,7 +306,7 @@ function CareTab() {
                             </button>
                         ))}
                     </div>
-                    <Button size="sm" className="h-8 gap-1.5 ml-auto">
+                    <Button size="sm" className="h-8 gap-1.5 ml-auto" onClick={() => setNewCaseOpen(true)}>
                         <Plus className="size-3.5" />New Case
                     </Button>
                 </div>
@@ -296,6 +369,65 @@ function CareTab() {
                 </div>
             </div>
             <CareCaseDetail careCase={selectedCase} onClose={() => setSelectedCase(null)} />
+            
+            {/* New Care Case Dialog */}
+            <Dialog open={newCaseOpen} onOpenChange={setNewCaseOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <HeartHandshake className="size-4 text-primary" />
+                            Create Care Case
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-2">
+                        <div>
+                            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Member Name *</Label>
+                            <Input value={form.member_name} onChange={e => setForm(p => ({ ...p, member_name: e.target.value }))} placeholder="e.g. Bro. Samuel" className="h-9" required />
+                        </div>
+                        <div>
+                            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Type *</Label>
+                            <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value as CareCase['type'] }))} className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                                <option value="hospital">Hospitalization</option>
+                                <option value="bereavement">Bereavement</option>
+                                <option value="counseling">Counseling</option>
+                                <option value="crisis">Crisis</option>
+                                <option value="prayer">Prayer Need</option>
+                                <option value="general">General</option>
+                            </select>
+                        </div>
+                        <div>
+                            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Title *</Label>
+                            <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Hospitalization — Surgery" className="h-9" required />
+                        </div>
+                        <div>
+                            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Description</Label>
+                            <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Details about the case..." className="w-full rounded-lg border border-border bg-background text-sm p-3 resize-none focus:outline-none focus:ring-1 focus:ring-ring" rows={3} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Priority *</Label>
+                                <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value as CareCase['priority'] }))} className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                            <div>
+                                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Assign To</Label>
+                                <select value={form.assigned_to} onChange={e => setForm(p => ({ ...p, assigned_to: e.target.value }))} className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                                    <option value="">Unassigned</option>
+                                    {(admins ?? []).map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                            <Button className="flex-1" onClick={handleSubmit}>Create Case</Button>
+                            <Button variant="outline" onClick={() => setNewCaseOpen(false)}>Cancel</Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
@@ -303,26 +435,32 @@ function CareTab() {
 // ─── Celebrations Tab ─────────────────────────────────────────────────────────
 
 function CelebrationsTab({ categories, initialCelebrations }: { categories: CelebrationCategory[]; initialCelebrations: any[] }) {
-    const [celebrations, setCelebrations] = useState(initialCelebrations);
+    // Pull directly from Inertia props so the list refreshes after every save/acknowledge
+    const { celebrations: serverCelebrations } = usePage<any>().props;
+    const celebrations: any[] = serverCelebrations ?? initialCelebrations;
+
     const [addOpen, setAddOpen] = useState(false);
-    const [form, setForm] = useState({ member_name: '', category_id: 'birthday', date: '', note: '' });
+    // Use the first real category's numeric id as default, not a slug
+    const [form, setForm] = useState({ member_name: '', category_id: String(categories[0]?.id ?? ''), date: '', note: '' });
 
     const upcoming = celebrations.filter((c: any) => new Date(c.date) >= new Date()).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const past = celebrations.filter((c: any) => new Date(c.date) < new Date());
 
     function acknowledge(id: any) {
         router.patch(`/love/celebrations/${id}/acknowledge`, {}, {
-            onSuccess: () => setCelebrations(prev => prev.map((c: any) => c.id === id ? { ...c, acknowledged: true } : c)),
+            onSuccess: () => toast.success('Celebration acknowledged!'),
         });
-        toast.success('Celebration acknowledged!');
     }
 
     function getCategoryById(id: any) {
+        // backend sends category_id (number), match by coercing both to string
         return categories.find((c: any) => String(c.id) === String(id));
     }
 
-    function CelebCard({ cel }: { cel: Celebration }) {
-        const cat = getCategoryById(cel.categoryId);
+    function CelebCard({ cel }: { cel: any }) {
+        // backend: category_id (snake_case), frontend Celebration type: categoryId (camelCase) — handle both
+        const catId = cel.category_id ?? cel.categoryId;
+        const cat = getCategoryById(catId);
         if (!cat) return null;
         const Icon = celebIconMap[cat.icon] || PartyPopper;
         return (
@@ -407,17 +545,24 @@ function CelebrationsTab({ categories, initialCelebrations }: { categories: Cele
                         </div>
                         <div className="flex gap-3 pt-1">
                             <Button className="flex-1" onClick={() => {
-                                if (!form.member_name || !form.date) return;
+                                if (!form.member_name || !form.date) {
+                                    toast.error('Please fill in member name and date');
+                                    return;
+                                }
                                 router.post('/love/celebrations', {
                                     member_name:  form.member_name,
-                                    category_id:  form.category_id,
+                                    category_id:  parseInt(form.category_id, 10),
                                     date:         form.date,
                                     note:         form.note,
                                 }, {
                                     onSuccess: () => {
-                                        setForm({ member_name: '', category_id: 'birthday', date: '', note: '' });
+                                        setForm({ member_name: '', category_id: String(categories[0]?.id ?? ''), date: '', note: '' });
                                         setAddOpen(false);
                                         toast.success('Celebration added!');
+                                    },
+                                    onError: (errors) => {
+                                        console.error('Celebration save errors:', errors);
+                                        toast.error('Failed to save celebration. Check the console for details.');
                                     },
                                 });
                             }}>Save</Button>

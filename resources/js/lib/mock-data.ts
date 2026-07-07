@@ -1,6 +1,12 @@
 /**
- * Church OS — Mock Data & Simulated Backend Layer
- * Simulates realistic API responses for all modules.
+ * Church OS — Type Definitions & Utility Functions
+ * 
+ * NOTE: This file contains TypeScript type definitions and formatting utilities.
+ * The mock data at the bottom of this file is NOT used by the application —
+ * all data comes from the Laravel backend via Inertia props.
+ * 
+ * Keep the types and utility functions (formatCurrency, formatNumber).
+ * The mock data arrays can be safely removed if desired, or kept as reference examples.
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────

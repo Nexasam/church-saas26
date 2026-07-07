@@ -4,11 +4,10 @@ namespace App\Notifications;
 
 use App\Models\Celebration;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class CelebrationNotification extends Notification implements ShouldQueue
+class CelebrationNotification extends Notification
 {
     use Queueable;
 

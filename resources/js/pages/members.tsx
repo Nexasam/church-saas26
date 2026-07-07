@@ -67,6 +67,7 @@ type Member = {
     departments: string[];
     department_ids: number[];
     attendance_rate: number;
+    quarterly_rate: number;
     created_at: string;
 };
 
@@ -442,8 +443,8 @@ function MemberProfile({ member, onClose, attendancePeriod }: {
     const [editOpen, setEditOpen] = useState(false);
 
     const getAttendanceRate = (base: number) => {
-        if (attendancePeriod === 'quarterly') return Math.min(100, Math.round(base * 0.92));
-        return base;
+        if (attendancePeriod === 'quarterly') return member?.quarterly_rate ?? 0;
+        return member?.attendance_rate ?? 0;
     };
 
     return (
@@ -929,9 +930,8 @@ export default function Members() {
         });
     }
 
-    const getAttendanceRate = (base: number, period: 'monthly' | 'quarterly') => {
-        if (period === 'quarterly') return Math.min(100, Math.round(base * 0.92));
-        return base;
+    const getAttendanceRate = (member: Member, period: 'monthly' | 'quarterly') => {
+        return period === 'quarterly' ? (member.quarterly_rate ?? 0) : member.attendance_rate;
     };
 
     const currentStatus = filters.status || 'all';
@@ -978,7 +978,7 @@ export default function Members() {
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 z-10">
                             <tr className="border-b border-border bg-muted/80 backdrop-blur-sm">
-                                {['Member', 'Departments', 'Home Church', `Attendance (${attendancePeriod === 'monthly' ? 'Monthly' : 'Quarterly'})`, 'Joined', 'Status', ''].map(h => (
+                                {['Member', 'Departments', `Attendance (${attendancePeriod === 'monthly' ? 'Monthly' : 'Quarterly'})`, 'Joined', 'Status', ''].map(h => (
                                     <th key={h} className="text-left text-xs font-medium text-muted-foreground px-5 py-2.5 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                 ))}
                             </tr>
@@ -1014,14 +1014,13 @@ export default function Members() {
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="px-5 py-3.5 text-muted-foreground text-sm">{member.home_church || 'â€”'}</td>
                                         <td className="px-5 py-3.5">
                                             <div className="flex items-center gap-2">
                                                 <div className="flex-1 max-w-16 h-1.5 rounded-full bg-muted overflow-hidden">
                                                     <div className="h-full rounded-full bg-primary/70"
-                                                        style={{ width: `${getAttendanceRate(member.attendance_rate, attendancePeriod)}%` }} />
+                                                        style={{ width: `${getAttendanceRate(member, attendancePeriod)}%` }} />
                                                 </div>
-                                                <span className="text-xs font-medium tabular-nums">{getAttendanceRate(member.attendance_rate, attendancePeriod)}%</span>
+                                                <span className="text-xs font-medium tabular-nums">{getAttendanceRate(member, attendancePeriod)}%</span>
                                             </div>
                                         </td>
                                         <td className="px-5 py-3.5 text-muted-foreground text-sm whitespace-nowrap">{member.joined_at ?? 'â€”'}</td>

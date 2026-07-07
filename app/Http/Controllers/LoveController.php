@@ -154,10 +154,14 @@ class LoveController extends Controller
 
         $celebration = Celebration::create($validated);
 
-        // Notify all admins in the church about the celebration
-        $admins = User::where('church_id', auth()->user()->church_id)->get();
-        foreach ($admins as $admin) {
-            $admin->notify(new CelebrationNotification($celebration));
+        // Notify all admins — wrapped in try/catch so a mail failure never blocks the save
+        try {
+            $admins = User::where('church_id', auth()->user()->church_id)->get();
+            foreach ($admins as $admin) {
+                $admin->notify(new CelebrationNotification($celebration));
+            }
+        } catch (\Exception $e) {
+            \Log::warning('[CelebrationNotification] Failed to notify admins: ' . $e->getMessage());
         }
 
         return back()->with('success', 'Celebration added.');

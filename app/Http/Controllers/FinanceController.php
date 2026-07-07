@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\SanitizesCsv;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Income;
@@ -13,6 +14,7 @@ use Inertia\Inertia;
 
 class FinanceController extends Controller
 {
+    use SanitizesCsv;
     public function index(Request $request)
     {
         $churchId = auth()->user()->church_id;
@@ -77,7 +79,7 @@ class FinanceController extends Controller
                 'original_name' => $a->original_name,
                 'mime_type'     => $a->mime_type,
                 'size'          => $a->size,
-                'url'           => \Illuminate\Support\Facades\Storage::url($a->path),
+                'url'           => route('finance.attachments.show', $a->id),
                 'note'          => $a->note,
                 'uploaded_by_name' => $a->uploadedBy?->name,
             ])->values()->all(),
@@ -97,7 +99,7 @@ class FinanceController extends Controller
                 'original_name' => $a->original_name,
                 'mime_type'     => $a->mime_type,
                 'size'          => $a->size,
-                'url'           => \Illuminate\Support\Facades\Storage::url($a->path),
+                'url'           => route('finance.attachments.show', $a->id),
                 'note'          => $a->note,
                 'uploaded_by_name' => $a->uploadedBy?->name,
             ])->values()->all(),
@@ -278,15 +280,33 @@ class FinanceController extends Controller
         $incomes  = Income::withoutGlobalScopes()->where('church_id', $churchId)->with('category')->whereBetween('income_date', [$monthStart, $monthEnd])->get();
         $expenses = Expense::withoutGlobalScopes()->where('church_id', $churchId)->with('category')->whereBetween('expense_date', [$monthStart, $monthEnd])->get();
 
-        $rows   = ["Date,Description,Category,Type,Amount,Method,Status\r\n"];
+        $rows   = [['Date', 'Description', 'Category', 'Type', 'Amount', 'Method', 'Status']];
         foreach ($incomes as $i) {
-            $rows[] = implode(',', [$i->income_date, $i->note ?? '', $i->category?->name ?? '', 'Income', $i->amount, $i->source ?? '', 'confirmed']) . "\r\n";
+            $rows[] = $this->sanitizeCsvRow([
+                $i->income_date->toDateString(),
+                $i->note ?? '',
+                $i->category?->name ?? '',
+                'Income',
+                $i->amount,
+                $i->source ?? '',
+                'confirmed'
+            ]);
         }
         foreach ($expenses as $e) {
-            $rows[] = implode(',', [$e->expense_date, $e->note ?? '', $e->category?->name ?? '', 'Expense', $e->amount, 'cash', 'confirmed']) . "\r\n";
+            $rows[] = $this->sanitizeCsvRow([
+                $e->expense_date->toDateString(),
+                $e->note ?? '',
+                $e->category?->name ?? '',
+                'Expense',
+                $e->amount,
+                'cash',
+                'confirmed'
+            ]);
         }
 
-        return response(implode('', $rows), 200, [
+        $csv = implode("\r\n", array_map(fn ($r) => $this->rowToCsv($r), $rows));
+
+        return response($csv, 200, [
             'Content-Type'        => 'text/csv',
             'Content-Disposition' => "attachment; filename=finance-{$year}-{$month}.csv",
         ]);

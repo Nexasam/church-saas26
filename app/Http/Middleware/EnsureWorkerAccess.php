@@ -56,11 +56,18 @@ class EnsureWorkerAccess
                 'notifications.destroy',
                 'notifications.preferences',
                 'notifications.update-preferences',
-                'settings.profile',
-                'settings.profile.update',
-                'settings.password.update',
-                'settings.appearance',
-                'settings.delete-account',
+                // Settings routes (actual route names from settings.php)
+                'profile.edit',
+                'profile.update',
+                'profile.destroy',
+                'security.edit',
+                'user-password.update',
+                'appearance.edit',
+                // Password confirmation (required by security page via RequirePassword middleware)
+                'password.confirm',
+                'password.confirmed',
+                // Logout (registered by Fortify)
+                'logout',
             ];
 
             if (!in_array($currentRoute, $financeAllowed)) {
@@ -77,12 +84,26 @@ class EnsureWorkerAccess
             'worker.department',
             'worker.member.update',
             'worker.member.remove',
+            'worker.member.add',
+            'worker.attendance.mark',
             'notifications.index',
             'notifications.read',
             'notifications.read-all',
             'notifications.destroy',
             'notifications.preferences',
             'notifications.update-preferences',
+            // Settings routes
+            'profile.edit',
+            'profile.update',
+            'profile.destroy',
+            'security.edit',
+            'user-password.update',
+            'appearance.edit',
+            // Password confirmation (required by security page via RequirePassword middleware)
+            'password.confirm',
+            'password.confirmed',
+            // Logout
+            'logout',
         ];
 
         if (!in_array($currentRoute, $allowedRoutes)) {

@@ -42,7 +42,7 @@ class AttachmentController extends Controller
         $count = 0;
         foreach ($request->file('files') as $file) {
             $filename = uniqid('fa_', true) . '.' . $file->getClientOriginalExtension();
-            $path     = $file->storeAs("finance-attachments/{$churchId}", $filename, 'public');
+            $path     = $file->storeAs("finance-attachments/{$churchId}", $filename, 'do_spaces');
 
             FinanceAttachment::create([
                 'church_id'       => $churchId,
@@ -67,7 +67,7 @@ class AttachmentController extends Controller
     {
         abort_if($attachment->church_id !== auth()->user()->church_id, 403);
 
-        Storage::disk('public')->delete($attachment->path);
+        Storage::disk('do_spaces')->delete($attachment->path);
         $attachment->delete();
 
         return back()->with('success', 'Attachment deleted.');
@@ -77,12 +77,16 @@ class AttachmentController extends Controller
     {
         abort_if($attachment->church_id !== auth()->user()->church_id, 403);
 
-        $disk = Storage::disk('public');
+        $disk = Storage::disk('do_spaces');
 
         abort_unless($disk->exists($attachment->path), 404);
 
-        return $disk->response($attachment->path, $attachment->original_name, [
-            'Content-Type' => $attachment->mime_type,
+        // Generate a short-lived temporary URL (15 min) instead of streaming through the server
+        $url = $disk->temporaryUrl($attachment->path, now()->addMinutes(15), [
+            'ResponseContentDisposition' => 'inline; filename="' . $attachment->original_name . '"',
+            'ResponseContentType'        => $attachment->mime_type,
         ]);
+
+        return redirect($url);
     }
 }

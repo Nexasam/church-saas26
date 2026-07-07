@@ -3,30 +3,33 @@
 namespace App\Notifications;
 
 use App\Models\SmsCampaign;
+use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
 class WorkerSmsNotification extends Notification
 {
-    public function __construct(
-        public readonly SmsCampaign $campaign,
-        public readonly string $recipientLabel,
-    ) {}
+    use Queueable;
 
-    public function via(object $notifiable): array
+    public function __construct(
+        public SmsCampaign $campaign,
+        public string $label
+    ) {
+    }
+
+    public function via($notifiable): array
     {
         return ['database'];
     }
 
-    public function toDatabase(object $notifiable): array
+    public function toArray($notifiable): array
     {
         return [
-            'type'            => 'worker_sms',
-            'campaign_id'     => $this->campaign->id,
-            'title'           => $this->campaign->title,
-            'message'         => $this->campaign->message,
-            'recipient_label' => $this->recipientLabel,
-            'sent_at'         => $this->campaign->sent_at?->toIso8601String()
-                                 ?? $this->campaign->created_at->toIso8601String(),
+            'type'        => 'worker_sms',
+            'campaign_id' => $this->campaign->id,
+            'title'       => $this->label,
+            'message'     => $this->campaign->message,
+            'sent_to'     => $this->campaign->recipient_group,
+            'sent_count'  => $this->campaign->sent_count,
         ];
     }
 }

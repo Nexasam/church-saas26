@@ -11,7 +11,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,14 +69,39 @@ export default function Attendance() {
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [activeDate, setActiveDate] = useState<string>(dates[dates.length - 1] ?? '');
 
-    // Local attendance state — starts from server data, updated optimistically
-    const [attendance, setAttendance] = useState<Record<number, Record<string, AttendanceStatus>>>(() => {
+    // Normalize keys to numbers and re-sync whenever Inertia sends fresh props (month change)
+    const normalizedMap = useMemo<Record<number, Record<string, AttendanceStatus>>>(() => {
         const map: Record<number, Record<string, AttendanceStatus>> = {};
-        for (const [mid, dates] of Object.entries(initialMap)) {
-            map[Number(mid)] = dates as Record<string, AttendanceStatus>;
+        for (const [mid, datemap] of Object.entries(initialMap)) {
+            map[Number(mid)] = datemap as Record<string, AttendanceStatus>;
         }
         return map;
-    });
+    }, [initialMap]);
+
+    // Local optimistic overlay — merged on top of the server data
+    const [localOverride, setLocalOverride] = useState<Record<number, Record<string, AttendanceStatus>>>({});
+
+    // Merged view: server data + local optimistic updates
+    const attendance = useMemo<Record<number, Record<string, AttendanceStatus>>>(() => {
+        const merged: Record<number, Record<string, AttendanceStatus>> = { ...normalizedMap };
+        for (const [mid, datemap] of Object.entries(localOverride)) {
+            merged[Number(mid)] = { ...(merged[Number(mid)] ?? {}), ...datemap };
+        }
+        return merged;
+    }, [normalizedMap, localOverride]);
+
+    // Reset local overrides and active date when month/type/department changes
+    const filterKey = `${filters.year}-${filters.month}-${filters.service_type}-${filters.department}`;
+    const prevFilterKey = useRef('');
+
+    useEffect(() => {
+        if (prevFilterKey.current !== '' && prevFilterKey.current !== filterKey) {
+            setLocalOverride({});
+            setActiveDate(dates[dates.length - 1] ?? '');
+            setSelected(new Set());
+        }
+        prevFilterKey.current = filterKey;
+    }, [filterKey, dates]);
 
     const currentDate    = dates.includes(activeDate) ? activeDate : dates[dates.length - 1] ?? '';
     const serviceName    = SERVICE_TYPES.find(s => s.value === filters.service_type)?.label ?? 'Service';
@@ -87,18 +112,26 @@ export default function Attendance() {
 
     // ── Navigation ──────────────────────────────────────────────────────────
 
+    const now = new Date();
+    const isAtMax = filters.year > now.getFullYear() || (filters.year === now.getFullYear() && filters.month >= now.getMonth() + 1);
+    // Allow going back up to 6 months
+    const minDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const isAtMin = new Date(filters.year, filters.month - 1, 1) <= minDate;
+
     function navigate(params: Partial<typeof filters>) {
         setSelected(new Set());
         router.get('/attendance', { ...filters, ...params }, { preserveScroll: true });
     }
 
     function prevMonth() {
+        if (isAtMin) return;
         const m = filters.month === 1 ? 12 : filters.month - 1;
         const y = filters.month === 1 ? filters.year - 1 : filters.year;
         navigate({ year: y, month: m });
     }
 
     function nextMonth() {
+        if (isAtMax) return;
         const m = filters.month === 12 ? 1 : filters.month + 1;
         const y = filters.month === 12 ? filters.year + 1 : filters.year;
         navigate({ year: y, month: m });
@@ -108,7 +141,7 @@ export default function Attendance() {
 
     function setStatus(memberId: number, date: string, status: AttendanceStatus) {
         // Optimistic update
-        setAttendance(prev => ({
+        setLocalOverride(prev => ({
             ...prev,
             [memberId]: { ...(prev[memberId] ?? {}), [date]: status },
         }));
@@ -126,7 +159,7 @@ export default function Attendance() {
         const ids = Array.from(selected);
 
         // Optimistic update
-        setAttendance(prev => {
+        setLocalOverride(prev => {
             const next = { ...prev };
             ids.forEach(id => { next[id] = { ...(next[id] ?? {}), [currentDate]: status }; });
             return next;
@@ -148,7 +181,7 @@ export default function Attendance() {
 
     function markAll(status: AttendanceStatus) {
         const ids = filteredMembers.map(m => m.id);
-        setAttendance(prev => {
+        setLocalOverride(prev => {
             const next = { ...prev };
             ids.forEach(id => { next[id] = { ...(next[id] ?? {}), [currentDate]: status }; });
             return next;
@@ -199,11 +232,15 @@ export default function Attendance() {
                 <div className="flex flex-wrap items-center gap-2 px-6 py-3 border-b border-border shrink-0">
                     {/* Month nav */}
                     <div className="flex items-center rounded-lg border border-border overflow-hidden">
-                        <button onClick={prevMonth} className="flex size-8 items-center justify-center hover:bg-muted transition-colors">
+                        <button onClick={prevMonth} disabled={isAtMin}
+                            className={cn('flex size-8 items-center justify-center transition-colors',
+                                isAtMin ? 'opacity-30 cursor-not-allowed' : 'hover:bg-muted')}>
                             <ChevronLeft className="size-4" />
                         </button>
                         <span className="px-3 text-sm font-medium">{MONTHS[filters.month - 1]} {filters.year}</span>
-                        <button onClick={nextMonth} className="flex size-8 items-center justify-center hover:bg-muted transition-colors">
+                        <button onClick={nextMonth} disabled={isAtMax}
+                            className={cn('flex size-8 items-center justify-center transition-colors',
+                                isAtMax ? 'opacity-30 cursor-not-allowed' : 'hover:bg-muted')}>
                             <ChevronRight className="size-4" />
                         </button>
                     </div>
@@ -236,6 +273,14 @@ export default function Attendance() {
                             </button>
                         ))}
                     </div>
+
+                    {/* Export */}
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" asChild>
+                        <a href={`/attendance/export?year=${filters.year}&month=${filters.month}&service_type=${filters.service_type}`}>
+                            <Download className="size-3.5" />
+                            Export
+                        </a>
+                    </Button>
                 </div>
 
                 {view === 'take' && (

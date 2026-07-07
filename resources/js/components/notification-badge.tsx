@@ -19,10 +19,10 @@ export function NotificationBadge({ className = '' }: NotificationBadgeProps) {
   const fetchNotifications = async () => {
     try {
       const response = await fetch('/notifications')
-      const data = await response.json()
+      const data = await response.json() as { unread_count: number }
       setUnreadCount(data.unread_count)
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error)
+    } catch {
+      // Silently ignore fetch errors
     }
   }
 

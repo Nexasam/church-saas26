@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\SanitizesCsv;
 use App\Models\Department;
 use App\Models\Member;
 use Illuminate\Http\Request;
@@ -10,6 +11,7 @@ use Inertia\Inertia;
 
 class MemberController extends Controller
 {
+    use SanitizesCsv;
     /**
      * List all members for this church with search + filter.
      */
@@ -43,8 +45,64 @@ class MemberController extends Controller
                 )
             )
             ->orderBy('first_name')
-            ->paginate(50)
-            ->through(fn (Member $m) => $this->formatMember($m, $churchId));
+            ->paginate(50);
+
+        // Pre-fetch attendance rates for all members on this page in one query
+        $memberIds = $members->pluck('id')->toArray();
+        $now = now();
+
+        // Monthly: Sundays in current month
+        $monthStart = $now->copy()->startOfMonth()->toDateString();
+        $monthEnd   = $now->copy()->endOfMonth()->toDateString();
+
+        $monthlyPresent = \App\Models\ServiceAttendance::withoutGlobalScopes()
+            ->where('church_id', $churchId)
+            ->whereIn('member_id', $memberIds)
+            ->where('status', 'present')
+            ->whereBetween('service_date', [$monthStart, $monthEnd])
+            ->selectRaw('member_id, COUNT(*) as cnt')
+            ->groupBy('member_id')
+            ->pluck('cnt', 'member_id')
+            ->toArray();
+
+        $monthlyTotal = \App\Models\ServiceAttendance::withoutGlobalScopes()
+            ->where('church_id', $churchId)
+            ->whereIn('member_id', $memberIds)
+            ->whereBetween('service_date', [$monthStart, $monthEnd])
+            ->selectRaw('member_id, COUNT(*) as cnt')
+            ->groupBy('member_id')
+            ->pluck('cnt', 'member_id')
+            ->toArray();
+
+        // Quarterly: last 3 months
+        $quarterStart = $now->copy()->subMonths(3)->startOfMonth()->toDateString();
+
+        $quarterPresent = \App\Models\ServiceAttendance::withoutGlobalScopes()
+            ->where('church_id', $churchId)
+            ->whereIn('member_id', $memberIds)
+            ->where('status', 'present')
+            ->whereBetween('service_date', [$quarterStart, $monthEnd])
+            ->selectRaw('member_id, COUNT(*) as cnt')
+            ->groupBy('member_id')
+            ->pluck('cnt', 'member_id')
+            ->toArray();
+
+        $quarterTotal = \App\Models\ServiceAttendance::withoutGlobalScopes()
+            ->where('church_id', $churchId)
+            ->whereIn('member_id', $memberIds)
+            ->whereBetween('service_date', [$quarterStart, $monthEnd])
+            ->selectRaw('member_id, COUNT(*) as cnt')
+            ->groupBy('member_id')
+            ->pluck('cnt', 'member_id')
+            ->toArray();
+
+        $members = $members->through(fn (Member $m) => $this->formatMember(
+            $m, $churchId,
+            $monthlyPresent[$m->id] ?? 0,
+            $monthlyTotal[$m->id] ?? 0,
+            $quarterPresent[$m->id] ?? 0,
+            $quarterTotal[$m->id] ?? 0
+        ));
 
         $departments = Department::where('church_id', $churchId)
             ->orderBy('name')
@@ -310,7 +368,7 @@ class MemberController extends Controller
 
         foreach ($members as $m) {
             $pivot = $m->churches->first()?->pivot;
-            $rows[] = [
+            $rows[] = $this->sanitizeCsvRow([
                 $m->first_name,
                 $m->last_name,
                 $m->email ?? '',
@@ -324,10 +382,10 @@ class MemberController extends Controller
                 $pivot?->joined_at ?? '',
                 $m->departments->pluck('name')->join(' | '),
                 $m->home_church ?? '',
-            ];
+            ]);
         }
 
-        $csv      = implode("\n", array_map(fn ($r) => implode(',', array_map(fn ($c) => '"' . str_replace('"', '""', $c) . '"', $r)), $rows));
+        $csv      = implode("\n", array_map(fn ($r) => $this->rowToCsv($r), $rows));
         $filename = 'members_' . date('Y-m-d') . '.csv';
 
         return response($csv, 200, [
@@ -346,9 +404,12 @@ class MemberController extends Controller
         }
     }
 
-    private function formatMember(Member $m, int $churchId): array
+    private function formatMember(Member $m, int $churchId, int $monthlyPresent = 0, int $monthlyTotal = 0, int $quarterPresent = 0, int $quarterTotal = 0): array
     {
         $pivot = $m->churches->first()?->pivot;
+        $monthlyRate  = $monthlyTotal  > 0 ? round(($monthlyPresent  / $monthlyTotal)  * 100) : 0;
+        $quarterRate  = $quarterTotal  > 0 ? round(($quarterPresent  / $quarterTotal)  * 100) : 0;
+
         return [
             'id'              => $m->id,
             'name'            => $m->first_name . ' ' . $m->last_name,
@@ -366,10 +427,15 @@ class MemberController extends Controller
             'follow_up_stage' => $m->follow_up_stage ?? 'visitor',
             'membership_type' => $pivot?->membership_type ?? 'full',
             'status'          => $pivot?->is_active ? 'active' : 'inactive',
-            'joined_at'       => $pivot?->joined_at,
+            'joined_at'       => $pivot?->joined_at
+                ? \Carbon\Carbon::parse($pivot->joined_at)->toDateString()
+                : null,
             'departments'     => $m->departments->pluck('name')->toArray(),
             'department_ids'  => $m->departments->pluck('id')->toArray(),
-            'attendance_rate' => 0, // filled in by attendance module
+            'attendance_rate' => $monthlyRate,   // monthly (default shown)
+            'quarterly_rate'  => $quarterRate,
+            'monthly_sessions'  => $monthlyTotal,
+            'quarterly_sessions'=> $quarterTotal,
             'created_at'      => $m->created_at->toDateString(),
         ];
     }

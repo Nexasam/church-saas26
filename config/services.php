@@ -41,4 +41,20 @@ return [
         'redirect'      => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
+    'termii' => [
+        'key'       => env('TERMII_API_KEY'),
+        'sender_id' => env('TERMII_SENDER_ID', 'N-Alert'),
+        'channel'   => env('TERMII_CHANNEL', 'generic'), // generic | dnd | whatsapp
+    ],
+
+    'twilio' => [
+        'sid'   => env('TWILIO_ACCOUNT_SID'),
+        'token' => env('TWILIO_AUTH_TOKEN'),
+        'from'  => env('TWILIO_FROM_NUMBER'), // +1234567890 or messaging service SID
+    ],
+
+    'sms' => [
+        'provider' => env('SMS_PROVIDER', 'termii'), // termii | twilio
+    ],
+
 ];

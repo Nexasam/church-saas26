@@ -109,7 +109,18 @@ class BillingController extends Controller
     }
 
     /**
-     * Upgrade/downgrade plan (simulated - integrate with payment gateway in production)
+     * Upgrade/downgrade plan
+     * 
+     * TODO: Integrate with payment gateway before production
+     * Recommended: Paystack (Nigeria/Africa), Stripe (International)
+     * 
+     * Steps to integrate:
+     * 1. Install provider SDK: `composer require unicodeveloper/laravel-paystack` or `composer require stripe/stripe-php`
+     * 2. Add keys to .env: PAYSTACK_PUBLIC_KEY, PAYSTACK_SECRET_KEY
+     * 3. Create payment intent/link with the provider
+     * 4. Redirect user to payment page
+     * 5. Handle webhook callback to update subscription_expiry
+     * 6. Send confirmation email
      */
     public function updatePlan(Request $request)
     {
@@ -119,17 +130,35 @@ class BillingController extends Controller
 
         $church = Church::find(auth()->user()->church_id);
         
-        // In production, this would:
-        // 1. Create payment intent with Stripe/Paystack
-        // 2. Redirect to payment page
-        // 3. On success, update plan and subscription_expiry
-        
+        // ── TEMPORARY: Auto-approve for development ──
+        // Replace this entire block with actual payment gateway integration
         $church->update([
             'payment_category' => 'paid',
             'subscription_expiry' => now()->addMonth(),
         ]);
 
-        return back()->with('success', 'Plan updated successfully.');
+        return back()->with('success', 'Plan updated successfully. (Dev mode: payment skipped)');
+        
+        // ── PRODUCTION CODE (uncomment when payment gateway is integrated) ──
+        // $plans = [
+        //     'starter' => ['price' => 15000],
+        //     'growth' => ['price' => 35000],
+        //     'enterprise' => ['price' => 85000],
+        // ];
+        // $amount = $plans[$validated['plan']]['price'];
+        //
+        // // Paystack example:
+        // $paystack = new Paystack();
+        // $reference = $paystack->genTranxRef();
+        // $payment = $paystack->getAuthorizationUrl([
+        //     'amount' => $amount * 100, // in kobo
+        //     'email' => auth()->user()->email,
+        //     'reference' => $reference,
+        //     'callback_url' => route('billing.callback'),
+        //     'metadata' => ['plan' => $validated['plan'], 'church_id' => $church->id]
+        // ]);
+        //
+        // return redirect($payment->url);
     }
 
     /**

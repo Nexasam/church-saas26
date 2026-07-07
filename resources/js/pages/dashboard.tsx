@@ -44,15 +44,74 @@ function getGreeting() {
     return 'Good evening';
 }
 
-const verseOfTheDay = {
-    text: '"Go into all the world and preach the gospel to all creation."',
-    ref: 'Mark 16:15',
-};
+const WEEKLY_VERSES = [
+    { text: '"Go into all the world and preach the gospel to all creation."', ref: 'Mark 16:15' },
+    { text: '"I can do all things through Christ who strengthens me."', ref: 'Philippians 4:13' },
+    { text: '"For God so loved the world that he gave his one and only Son."', ref: 'John 3:16' },
+    { text: '"Trust in the LORD with all your heart and lean not on your own understanding."', ref: 'Proverbs 3:5' },
+    { text: '"The LORD is my shepherd; I shall not want."', ref: 'Psalm 23:1' },
+    { text: '"But seek first his kingdom and his righteousness, and all these things will be given to you."', ref: 'Matthew 6:33' },
+    { text: '"Be strong and courageous. Do not be afraid; do not be discouraged, for the LORD your God will be with you wherever you go."', ref: 'Joshua 1:9' },
+    { text: '"And we know that in all things God works for the good of those who love him."', ref: 'Romans 8:28' },
+    { text: '"The thief comes only to steal and kill and destroy; I have come that they may have life, and have it to the full."', ref: 'John 10:10' },
+    { text: '"Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God."', ref: 'Philippians 4:6' },
+    { text: '"For I know the plans I have for you, declares the LORD, plans to prosper you and not to harm you."', ref: 'Jeremiah 29:11' },
+    { text: '"Come to me, all you who are weary and burdened, and I will give you rest."', ref: 'Matthew 11:28' },
+    { text: '"The name of the LORD is a fortified tower; the righteous run to it and are safe."', ref: 'Proverbs 18:10' },
+    { text: '"No weapon forged against you will prevail, and you will refute every tongue that accuses you."', ref: 'Isaiah 54:17' },
+    { text: '"With man this is impossible, but with God all things are possible."', ref: 'Matthew 19:26' },
+    { text: '"If God is for us, who can be against us?"', ref: 'Romans 8:31' },
+    { text: '"Your word is a lamp for my feet, a light on my path."', ref: 'Psalm 119:105' },
+    { text: '"The LORD bless you and keep you; the LORD make his face shine on you and be gracious to you."', ref: 'Numbers 6:24-25' },
+    { text: '"Delight yourself in the LORD, and he will give you the desires of your heart."', ref: 'Psalm 37:4' },
+    { text: '"Cast all your anxiety on him because he cares for you."', ref: '1 Peter 5:7' },
+    { text: '"But those who hope in the LORD will renew their strength. They will soar on wings like eagles."', ref: 'Isaiah 40:31' },
+    { text: '"Greater love has no one than this: to lay down one\'s life for one\'s friends."', ref: 'John 15:13' },
+    { text: '"Let your light shine before others, that they may see your good deeds and glorify your Father in heaven."', ref: 'Matthew 5:16' },
+    { text: '"Be still, and know that I am God."', ref: 'Psalm 46:10' },
+    { text: '"And my God will meet all your needs according to the riches of his glory in Christ Jesus."', ref: 'Philippians 4:19' },
+    { text: '"Therefore, if anyone is in Christ, the new creation has come: The old has gone, the new is here!"', ref: '2 Corinthians 5:17' },
+    { text: '"Love is patient, love is kind. It does not envy, it does not boast, it is not proud."', ref: '1 Corinthians 13:4' },
+    { text: '"The LORD is close to the brokenhearted and saves those who are crushed in spirit."', ref: 'Psalm 34:18' },
+    { text: '"Ask and it will be given to you; seek and you will find; knock and the door will be opened to you."', ref: 'Matthew 7:7' },
+    { text: '"Give, and it will be given to you. A good measure, pressed down, shaken together and running over."', ref: 'Luke 6:38' },
+    { text: '"Now faith is confidence in what we hope for and assurance about what we do not see."', ref: 'Hebrews 11:1' },
+    { text: '"I am the way and the truth and the life. No one comes to the Father except through me."', ref: 'John 14:6' },
+    { text: '"Not by might nor by power, but by my Spirit, says the LORD Almighty."', ref: 'Zechariah 4:6' },
+    { text: '"The earth is the LORD\'s, and everything in it, the world, and all who live in it."', ref: 'Psalm 24:1' },
+    { text: '"Do not conform to the pattern of this world, but be transformed by the renewing of your mind."', ref: 'Romans 12:2' },
+    { text: '"Where two or three gather in my name, there am I with them."', ref: 'Matthew 18:20' },
+    { text: '"Taste and see that the LORD is good; blessed is the one who takes refuge in him."', ref: 'Psalm 34:8' },
+    { text: '"He who began a good work in you will carry it on to completion until the day of Christ Jesus."', ref: 'Philippians 1:6' },
+    { text: '"Be completely humble and gentle; be patient, bearing with one another in love."', ref: 'Ephesians 4:2' },
+    { text: '"The LORD your God is with you, the Mighty Warrior who saves."', ref: 'Zephaniah 3:17' },
+    { text: '"For the Spirit God gave us does not make us timid, but gives us power, love and self-discipline."', ref: '2 Timothy 1:7' },
+    { text: '"I will praise you, LORD, with all my heart; before the gods I will sing your praise."', ref: 'Psalm 138:1' },
+    { text: '"Let us not become weary in doing good, for at the proper time we will reap a harvest if we do not give up."', ref: 'Galatians 6:9' },
+    { text: '"Give thanks to the LORD, for he is good; his love endures forever."', ref: 'Psalm 107:1' },
+    { text: '"For where your treasure is, there your heart will be also."', ref: 'Matthew 6:21' },
+    { text: '"The weapons we fight with are not the weapons of the world. On the contrary, they have divine power."', ref: '2 Corinthians 10:4' },
+    { text: '"I have been crucified with Christ and I no longer live, but Christ lives in me."', ref: 'Galatians 2:20' },
+    { text: '"Rejoice always, pray continually, give thanks in all circumstances."', ref: '1 Thessalonians 5:16-18' },
+    { text: '"The grass withers and the flowers fall, but the word of our God endures forever."', ref: 'Isaiah 40:8' },
+    { text: '"As iron sharpens iron, so one person sharpens another."', ref: 'Proverbs 27:17' },
+    { text: '"I am the resurrection and the life. The one who believes in me will live, even though they die."', ref: 'John 11:25' },
+    { text: '"Blessed are the pure in heart, for they will see God."', ref: 'Matthew 5:8' },
+];
+
+function getVerseOfTheWeek() {
+    // Use ISO week number so it changes every Monday
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const weekNum = Math.floor((now.getTime() - startOfYear.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    return WEEKLY_VERSES[weekNum % WEEKLY_VERSES.length];
+}
 
 export default function Dashboard() {
     type DashProps = { stats: any; funnelData: any[]; financeMonthly: any[]; urgentFollowUps: any[]; openCareCases: any[]; openCareCasesCount: number; urgentCareCasesCount: number; activityFeed: any[]; churchName: string };
     const { stats, funnelData, financeMonthly, urgentFollowUps, openCareCases, openCareCasesCount, urgentCareCasesCount, activityFeed, churchName } = usePage<DashProps>().props;
     const unreadAlerts = openCareCases.filter((c: any) => c.priority === "urgent" || c.priority === "high").slice(0, 3);
+    const verse = getVerseOfTheWeek();
     return (
         <>
             <Head title="Dashboard" />
@@ -82,17 +141,17 @@ export default function Dashboard() {
                         <div className="flex max-w-xs flex-col gap-1 rounded-xl bg-white/10 px-4 py-3 backdrop-blur-sm">
                             <div className="flex items-center gap-1.5 text-xs text-white/70">
                                 <BookOpen className="size-3" />
-                                Verse of the Day
+                                Verse of the Week
                             </div>
-                            <p className="text-sm font-medium leading-snug text-white/95 italic">{verseOfTheDay.text}</p>
-                            <span className="text-xs text-yellow-300 font-semibold">{verseOfTheDay.ref}</span>
+                            <p className="text-sm font-medium leading-snug text-white/95 italic">{verse.text}</p>
+                            <span className="text-xs text-yellow-300 font-semibold">{verse.ref}</span>
                         </div>
                     </div>
 
                     {/* Quick actions */}
                     <div className="relative mt-5 flex flex-wrap gap-2">
                         <Button size="sm" variant="secondary" className="h-8 gap-1.5 bg-white/15 text-white border-white/20 hover:bg-white/25" asChild>
-                            <Link href="/finance/service-entry">
+                            <Link href="/finance?tab=service-entry">
                                 <Zap className="size-3.5" />
                                 Service Entry
                             </Link>
@@ -210,7 +269,7 @@ export default function Dashboard() {
                             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
                                 <div className="flex items-center gap-2">
                                     <UserSearch className="size-4 text-muted-foreground" />
-                                    <h3 className="text-sm font-semibold">Priority Follow-Ups</h3>
+                                    <h3 className="text-sm font-Hsemibold">Priority Follow-Ups</h3>
                                     <Badge variant="secondary" className="h-5 px-1.5 text-xs">
                                         {urgentFollowUps.length}
                                     </Badge>

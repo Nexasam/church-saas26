@@ -4,42 +4,31 @@ namespace App\Notifications;
 
 use App\Models\SmsCampaign;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class SmsDeliveryNotification extends Notification implements ShouldQueue
+class SmsDeliveryNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(
-        public readonly SmsCampaign $campaign
-    ) {}
+    public function __construct(public SmsCampaign $campaign)
+    {
+    }
 
-    public function via(object $notifiable): array
+    public function via($notifiable): array
     {
         return ['database'];
     }
 
-    public function toDatabase(object $notifiable): array
+    public function toArray($notifiable): array
     {
         return [
+            'type'        => 'sms_delivery',
             'campaign_id' => $this->campaign->id,
-            'title' => $this->campaign->title,
-            'type' => $this->campaign->type,
-            'recipients_count' => $this->campaign->recipients_count,
-            'sent_count' => $this->campaign->sent_count,
-            'failed_count' => $this->campaign->failed_count,
-            'status' => $this->campaign->status,
-        ];
-    }
-
-    public function toArray(object $notifiable): array
-    {
-        return [
-            'campaign_id' => $this->campaign->id,
-            'title' => $this->campaign->title,
-            'status' => $this->campaign->status,
+            'title'       => $this->campaign->title,
+            'sent_count'  => $this->campaign->sent_count,
+            'failed_count'=> $this->campaign->failed_count,
+            'status'      => $this->campaign->status,
+            'message'     => "SMS campaign \"{$this->campaign->title}\" delivered to {$this->campaign->sent_count} recipients.",
         ];
     }
 }
